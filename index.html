@@ -73,7 +73,7 @@ const authContainer = document.getElementById('authContainer');
 const app = document.getElementById('app');
 const budgetContainer = document.getElementById('budgetContainer');
 
-// ===== تسجيل دخول =====
+// ===== تسجيل الدخول =====
 function showLogin(){
   authContainer.innerHTML = `
   <div class="card p-3 card-rose mx-auto" style="max-width:400px;">
@@ -102,7 +102,7 @@ function signupStep1(){
   const password = document.getElementById('password').value;
   if(!email || !password){alert("ادخلي البريد وكلمة المرور"); return;}
   
-  // ننتقل للخطوة التالية لتحديد الراتب والأقسام
+  // صفحة اختيار الراتب والأقسام
   authContainer.innerHTML = `
   <div class="card p-3 card-rose mx-auto" style="max-width:500px;">
     <h5 class="mb-3 text-center">اعدادات الميزانية</h5>
@@ -143,6 +143,8 @@ function signupStep1(){
         installments,
         categories,
         dailyExpenses: []
+      }).then(()=>{
+        loadUserData(uid); // تحميل لوحة الميزانية مباشرة
       });
     }).catch(e=>alert(e.message));
   };
@@ -211,18 +213,17 @@ function renderBudget(data, uid){
       newExpenses[input.dataset.cat] = val;
       input.value='';
     });
-    // حفظ المصروفات اليومية
+
     const docRef = db.collection('users').doc(uid);
-    const docSnap = await docRef.get();
-    const docData = docSnap.data();
-    const updatedExpenses = docData.dailyExpenses || [];
-    updatedExpenses.push({date, ...newExpenses});
-    await docRef.update({dailyExpenses: updatedExpenses});
-    renderBudget(docData, uid); // إعادة عرض
+    await docRef.update({
+      dailyExpenses: firebase.firestore.FieldValue.arrayUnion({date, ...newExpenses})
+    });
+
+    const updatedSnap = await docRef.get();
+    renderBudget(updatedSnap.data(), uid);
   };
 
   document.getElementById('endMonthBtn').onclick = async ()=>{
-    // حساب الباقي لكل قسم وتحويله للادخار
     const docRef = db.collection('users').doc(uid);
     const docSnap = await docRef.get();
     const docData = docSnap.data();
@@ -246,7 +247,7 @@ function renderBudget(data, uid){
     renderBudget({...docData, categories:newCategories, dailyExpenses:[]}, uid);
   };
 
-  // رسم Pie Chart
+  // Pie Chart
   const ctx = document.getElementById('pieChart').getContext('2d');
   const labels = Object.keys(data.categories);
   const values = Object.values(data.categories);
