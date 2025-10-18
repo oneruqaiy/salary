@@ -102,7 +102,6 @@ function signupStep1(){
   const password = document.getElementById('password').value;
   if(!email || !password){alert("ادخلي البريد وكلمة المرور"); return;}
   
-  // صفحة اختيار الراتب والأقسام
   authContainer.innerHTML = `
   <div class="card p-3 card-rose mx-auto" style="max-width:500px;">
     <h5 class="mb-3 text-center">اعدادات الميزانية</h5>
@@ -136,16 +135,16 @@ function signupStep1(){
 
     // إنشاء المستخدم
     auth.createUserWithEmailAndPassword(email,password)
-    .then(userCredential=>{
-      const uid = userCredential.user.uid;
-      db.collection('users').doc(uid).set({
-        salary,
-        installments,
-        categories,
-        dailyExpenses: []
-      }).then(()=>{
-        loadUserData(uid); // تحميل لوحة الميزانية مباشرة
-      });
+    .then(async userCredential=>{
+        const uid = userCredential.user.uid;
+        await db.collection('users').doc(uid).set({
+            salary,
+            installments,
+            categories,
+            dailyExpenses: []
+        });
+        // تحميل لوحة الميزانية مباشرة بعد حفظ البيانات
+        loadUserData(uid);
     }).catch(e=>alert(e.message));
   };
 }
