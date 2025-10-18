@@ -73,6 +73,9 @@ const authContainer = document.getElementById('authContainer');
 const app = document.getElementById('app');
 const budgetContainer = document.getElementById('budgetContainer');
 
+// ===== تخزين البريد وكلمة المرور مؤقتاً =====
+let tempEmail="", tempPassword="";
+
 // ===== تسجيل الدخول =====
 function showLogin(){
   authContainer.innerHTML = `
@@ -98,9 +101,9 @@ function login(){
 }
 
 function signupStep1(){
-  const email = document.getElementById('email').value;
-  const password = document.getElementById('password').value;
-  if(!email || !password){alert("ادخلي البريد وكلمة المرور"); return;}
+  tempEmail = document.getElementById('email').value;
+  tempPassword = document.getElementById('password').value;
+  if(!tempEmail || !tempPassword){alert("ادخلي البريد وكلمة المرور"); return;}
   
   authContainer.innerHTML = `
   <div class="card p-3 card-rose mx-auto" style="max-width:500px;">
@@ -133,8 +136,8 @@ function signupStep1(){
     const categories = {};
     for(let i=0;i<categoryNames.length;i++){ categories[categoryNames[i]] = categoryAmounts[i]; }
 
-    // إنشاء المستخدم
-    auth.createUserWithEmailAndPassword(email,password)
+    // إنشاء المستخدم وحفظ البيانات
+    auth.createUserWithEmailAndPassword(tempEmail,tempPassword)
     .then(async userCredential=>{
         const uid = userCredential.user.uid;
         await db.collection('users').doc(uid).set({
@@ -143,7 +146,6 @@ function signupStep1(){
             categories,
             dailyExpenses: []
         });
-        // تحميل لوحة الميزانية مباشرة بعد حفظ البيانات
         loadUserData(uid);
     }).catch(e=>alert(e.message));
   };
@@ -188,6 +190,7 @@ function renderBudget(data, uid){
       <div id="expenseInputs"></div>
       <button id="addExpenseBtn" class="btn btn-outline-primary mb-2">اضافة المصروفات</button>
       <button id="endMonthBtn" class="btn btn-gold mb-2">نهاية الشهر → تحويل الباقي للادخار</button>
+      <button id="resetBtn" class="btn btn-outline-danger mb-2">إعادة ضبط الحساب</button>
     </div>
     <canvas id="pieChart" height="200"></canvas>
   </div>
@@ -207,54 +210,50 @@ function renderBudget(data, uid){
   document.getElementById('addExpenseBtn').onclick = async ()=>{
     const date = document.getElementById('expenseDate').value;
     const newExpenses = {};
-    Array.from(document.getElementsByClassName('expense-input')).forEach(input=>{
-      const val = parseFloat(input.value)||0;
-      newExpenses[input.dataset.cat] = val;
-      input.value='';
+    Array.from(document.getElementsByClassName('expense-input')).forEach(inp=>{
+      const cat = inp.dataset.cat;
+      const val = parseFloat(inp.value)||0;
+      newExpenses[cat] = val;
     });
-
-    const docRef = db.collection('users').doc(uid);
-    await docRef.update({
-      dailyExpenses: firebase.firestore.FieldValue.arrayUnion({date, ...newExpenses})
-    });
-
-    const updatedSnap = await docRef.get();
-    renderBudget(updatedSnap.data(), uid);
+    data.dailyExpenses.push({date, expenses:newExpenses});
+    await db.collection('users').doc(uid).update({dailyExpenses:data.dailyExpenses});
+    alert("تم حفظ المصروفات");
+    renderChart(data);
   };
 
   document.getElementById('endMonthBtn').onclick = async ()=>{
-    const docRef = db.collection('users').doc(uid);
-    const docSnap = await docRef.get();
-    const docData = docSnap.data();
-    const totals = {};
-    for(const cat in docData.categories){ totals[cat] = 0; }
-    (docData.dailyExpenses||[]).forEach(d=>{
-      for(const cat in docData.categories){
-        totals[cat] += d[cat]||0;
-      }
-    });
-    const newCategories = {...docData.categories};
-    if(newCategories['مدخرات']!==undefined){
-      for(const cat in newCategories){
-        if(cat!=='مدخرات'){
-          newCategories['مدخرات'] += Math.max(0,newCategories[cat]-totals[cat]);
-        }
-      }
-    }
-    await docRef.update({categories:newCategories, dailyExpenses:[]});
-    alert("تم تحويل الباقي للادخار ومسح المصروفات الشهرية");
-    renderBudget({...docData, categories:newCategories, dailyExpenses:[]}, uid);
+    let totalSpent = 0;
+    for(const day of data.dailyExpenses) for(const cat in day.expenses) totalSpent+=day.expenses[cat];
+    let totalBudget = Object.values(data.categories).reduce((a,b)=>a+b,0);
+    let remaining = totalBudget - totalSpent;
+    alert(`تم تحويل ${remaining.toFixed(2)} ريال للادخار`);
+    data.categories["ادخار"] = (data.categories["ادخار"]||0) + remaining;
+    await db.collection('users').doc(uid).update({categories:data.categories});
+    renderChart(data);
   };
 
-  // Pie Chart
+  document.getElementById('resetBtn').onclick = async ()=>{
+    if(!confirm("هل أنت متأكدة من إعادة ضبط الحساب؟ سيتم مسح كل البيانات!")) return;
+    await db.collection('users').doc(uid).delete();
+    alert("تم مسح كل البيانات! سيتم إعادة تسجيل الميزانية من البداية.");
+    signupStep1();
+  };
+
+  renderChart(data);
+}
+
+// ===== رسم Pie Chart =====
+function renderChart(data){
   const ctx = document.getElementById('pieChart').getContext('2d');
-  const labels = Object.keys(data.categories);
-  const values = Object.values(data.categories);
-  new Chart(ctx, {
-    type:'pie',
-    data:{labels, datasets:[{data:values, backgroundColor:['#f7c6d9','#f08fb8','#d6b86a','#fff6f3','#f0a6c0','#e2c6d9']}]},
-    options:{responsive:true}
-  });
+  const chartData = {
+    labels: Object.keys(data.categories),
+    datasets:[{
+      data: Object.values(data.categories),
+      backgroundColor: ["#f7c6d9","#f08fb8","#fff6f3","#d6b86a","#f3b1c6","#d67a9f","#ffc0cb"]
+    }]
+  };
+  if(window.myChart) window.myChart.destroy();
+  window.myChart = new Chart(ctx,{type:'pie',data:chartData});
 }
 </script>
 </body>
