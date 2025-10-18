@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>راتبي الذكي — Budget Planner</title>
+
+  <!-- Bootstrap 5 CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root{
+      --pink:#f7c6d9;
+      --deep-pink:#f08fb8;
+      --beige:#fff6f3;
+      --gold:#d6b86a;
+      --card-shadow: 0 6px 18px rgba(224, 155, 190, 0.18);
+      --accent-text:#6b2f46;
+    }
+    body{
+      background: linear-gradient(180deg, #fff 0%, #fff6f8 100%);
+      color: var(--accent-text);
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      padding-bottom:40px;
+    }
+    .brand {
+      display:flex;gap:12px;align-items:center;
+    }
+    .brand .logo {
+      width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--deep-pink),var(--pink));
+      box-shadow: var(--card-shadow);
+      display:flex;align-items:center;justify-content:center;color:white;font-weight:700;
+    }
+    .card-rose{
+      background: linear-gradient(180deg, rgba(240,143,184,0.08), rgba(247,198,217,0.03));
+      border: none;
+      box-shadow: var(--card-shadow);
+      border-radius:14px;
+    }
+    .stat-card { border-radius:12px; padding:18px }
+    .category-name { font-weight:700; font-size:0.95rem }
+    .small-muted { color:#7a5a67; font-size:0.88rem }
+    .btn-gold { background:var(--gold); color:#3b2d1d; border: none; }
+    table thead th { border-bottom:0; }
+    .form-control:focus { box-shadow: none; border-color: var(--deep-pink); }
+    footer { margin-top:30px; color:#7a5a67; font-size:0.9rem; }
+    .rounded-card { border-radius:12px; }
+    .note { font-size:0.86rem; color:#8a5a6d; }
+  </style>
+</head>
+<body>
+
+  <div class="container py-4">
+    <header class="d-flex justify-content-between align-items-center mb-3">
+      <div class="brand">
+        <div class="logo">R</div>
+        <div>
+          <h4 class="mb-0">راتبي الذكي</h4>
+          <div class="small-muted">منظّم راتبك بطريقة سهلة وتلقائية 💗</div>
+        </div>
+      </div>
+
+      <div class="text-end">
+        <div class="mb-2">الراتب الافتراضي</div>
+        <div class="d-flex gap-2 align-items-center">
+          <div class="fw-bold fs-5">700 ر.ع</div>
+          <button id="exportBtn" class="btn btn-sm btn-outline-secondary">Backup</button>
+          <input id="importFile" type="file" accept="application/json" style="display:none" />
+          <button id="importBtn" class="btn btn-sm btn-outline-secondary">استيراد</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Controls -->
+    <div class="row g-3 mb-3">
+      <div class="col-md-4">
+        <div class="card card-rose p-3 rounded-card">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="small-muted">اختر الشهر</div>
+              <select id="monthSelect" class="form-select mt-1"></select>
+            </div>
+            <div class="text-end">
+              <div class="small-muted">السنة</div>
+              <div id="yearLabel" class="fw-bold">2025</div>
+            </div>
+          </div>
+          <div class="mt-3 d-flex gap-2">
+            <button id="initMonth" class="btn btn-gold btn-sm w-100">Initialize / Reset Month</button>
+            <button id="endMonth" class="btn btn-outline-primary btn-sm w-100">نهاية الشهر — تحويل الباقي</button>
+          </div>
+          <div class="mt-2 note">باقي المبلغ من الأكل والبترول والترفيه سينتقل تلقائيًا للمدخرات عند الضغط على نهاية الشهر.</div>
+        </div>
+      </div>
+
+      <div class="col-md-8">
+        <div class="card p-3 rounded-card">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="small-muted">ملخص الشهر</div>
+              <div class="fs-5 fw-bold" id="salaryDisplay">700 ر.ع</div>
+            </div>
+            <div class="text-end">
+              <div class="small-muted">المتبقي الكلي</div>
+              <div class="fs-5 fw-bold text-success" id="totalRemaining">0 ر.ع</div>
+            </div>
+          </div>
+
+          <div class="mt-3" id="cardsRow"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transactions & Add -->
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <div class="card card-rose p-3 rounded-card">
+          <h6 class="mb-3">أضف مصروفًا</h6>
+          <form id="expenseForm" class="row gx-2 gy-2 align-items-end">
+            <div class="col-12">
+              <label class="form-label small-muted">التاريخ</label>
+              <input id="expDate" type="date" class="form-control" required />
+            </div>
+            <div class="col-12">
+              <label class="form-label small-muted">الفئة</label>
+              <select id="expCategory" class="form-select">
+                <!-- options injected -->
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small-muted">المبلغ (ر.ع)</label>
+              <input id="expAmount" type="number" class="form-control" min="0" step="0.1" required />
+            </div>
+            <div class="col-6">
+              <label class="form-label small-muted">ملاحظة</label>
+              <input id="expNote" type="text" class="form-control" placeholder="مثلاً: غداء مع صديقات" />
+            </div>
+            <div class="col-12">
+              <button class="btn btn-gold w-100" type="submit">أضف المصروف</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card p-3 mt-3 rounded-card">
+          <h6 class="mb-2">سجل المعاملات للشهر</h6>
+          <div style="max-height:280px; overflow:auto;">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>التاريخ</th><th>الفئة</th><th>المبلغ</th><th>ملاحظات</th><th></th>
+                </tr>
+              </thead>
+              <tbody id="txTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="col-lg-6">
+        <div class="card p-3 rounded-card mb-3">
+          <h6>توزيع الراتب (بالتخصيص)</h6>
+          <canvas id="pieChart" height="200"></canvas>
+        </div>
+
+        <div class="card p-3 rounded-card">
+          <h6>تراكم المدخرات عبر الشهور</h6>
+          <canvas id="savingsChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <footer class="text-center mt-4">
+      مصمم لكِ — راتبي الذكي • احفظي الملف وارفعيه على GitHub Pages أو أي استضافة ثابتة لعرضه على النت.
+    </footer>
+  </div>
+
+<script>
+/* ==== إعداد البيانات الافتراضية ==== */
+const DEFAULT_SALARY = 700;
+const DEFAULT_YEAR = new Date().getFullYear();
+const CATEGORIES = [
+  { id: 'car_installment', name: 'قسط السيارة', alloc: 302, type: 'fixed' },
+  { id: 'petrol', name: 'بترول', alloc: 40, type: 'daily' },
+  { id: 'insurance', name: 'تأمين وتجديد السيارة', alloc: 25, type: 'fixed' },
+  { id: 'food', name: 'أكل ومصروف', alloc: 50, type: 'daily' },
+  { id: 'entertainment', name: 'ترفيه (صالون/مطاعم)', alloc: 70, type: 'daily' },
+  { id: 'savings', name: 'مدخرات', alloc: 150, type: 'savings' },
+  { id: 'investment', name: 'استثمار', alloc: 63, type: 'investment' }
+];
+
+const STORAGE_KEY = 'ruq_budget_v1';
+
+/* ==== DOM refs ==== */
+const monthSelect = document.getElementById('monthSelect');
+const yearLabel = document.getElementById('yearLabel');
+const initMonthBtn = document.getElementById('initMonth');
+const endMonthBtn = document.getElementById('endMonth');
+const cardsRow = document.getElementById('cardsRow');
+const salaryDisplay = document.getElementById('salaryDisplay');
+const totalRemainingEl = document.getElementById('totalRemaining');
+const expForm = document.getElementById('expenseForm');
+const expCategory = document.getElementById('expCategory');
+const expDate = document.getElementById('expDate');
+const expAmount = document.getElementById('expAmount');
+const expNote = document.getElementById('expNote');
+const txTable = document.getElementById('txTable');
+const exportBtn = document.getElementById('exportBtn');
+const importBtn = document.getElementById('importBtn');
+const importFile = document.getElementById('importFile');
+
+let store = loadStore();
+let currentMonthKey = monthKeyFor(new Date());
+
+/* ==== init UI ==== */
+function init(){
+  yearLabel.textContent = DEFAULT_YEAR;
+  populateMonthSelect();
+  populateCategorySelect();
+  currentMonthKey = monthKeyFor(new Date());
+  monthSelect.value = currentMonthKey;
+  render();
+  attachEvents();
+}
+function populateMonthSelect(){
+  const months = [];
+  const d = new Date();
+  const year = d.getFullYear();
+  for(let m=0;m<12;m++){
+    const key = `${year}-${String(m+1).padStart(2,'0')}`;
+    const name = new Date(year,m,1).toLocaleString('ar-EG',{month:'long'});
+    months.push({key,name});
+  }
+  monthSelect.innerHTML = months.map(m=>`<option value="${m.key}">${m.name} ${year}</option>`).join('');
+}
+function populateCategorySelect(){
+  expCategory.innerHTML = CATEGORIES.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+}
+
+/* ==== storage ==== */
+function loadStore(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return { months: {} , settings: { salary: DEFAULT_SALARY, year: DEFAULT_YEAR } };
+    return JSON.parse(raw);
+  } catch(e){
+    console.error(e);
+    return { months: {} , settings: { salary: DEFAULT_SALARY, year: DEFAULT_YEAR } };
+  }
+}
+function saveStore(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+}
+
+/* ==== month helpers ==== */
+function monthKeyFor(date){
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,'0');
+  return `${y}-${m}`;
+}
+function ensureMonth(key){
+  if(!store.months[key]){
+    // initialize with categories and zero transactions
+    const catState = {};
+    CATEGORIES.forEach(c => {
+      catState[c.id] = { alloc: c.alloc, spent: 0 };
+    });
+    store.months[key] = {
+      salary: store.settings.salary || DEFAULT_SALARY,
+      transactions: [],
+      categories: catState,
+      carriedFromPrev: 0
+    };
+    saveStore();
+  }
+}
+
+/* ==== rendering ==== */
+let pieChart, savingsChart;
+function render(){
+  currentMonthKey = monthSelect.value;
+  ensureMonth(currentMonthKey);
+  const data = store.months[currentMonthKey];
+
+  salaryDisplay.textContent = `${data.salary} ر.ع`;
+  // render cards
+  cardsRow.innerHTML = '';
+  const cardCols = CATEGORIES.map(c => {
+    const state = data.categories[c.id] || { alloc:c.alloc, spent:0 };
+    const remaining = +(state.alloc - state.spent).toFixed(2);
+    return `
+      <div class="col-md-4 mb-2">
+        <div class="stat-card card p-3">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="category-name">${c.name}</div>
+              <div class="small-muted">${c.type === 'daily' ? 'يومي / متغير' : c.type}</div>
+            </div>
+            <div class="text-end">
+              <div class="fw-bold">${state.alloc} ر.ع</div>
+              <div class="small-muted">المخصص</div>
+            </div>
+          </div>
+          <hr />
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-bold">${state.spent} ر.ع</div>
+              <div class="small-muted">مصروف فعلي</div>
+            </div>
+            <div class="${remaining>=0 ? 'text-success' : 'text-danger'}">
+              <div class="fw-bold">${remaining} ر.ع</div>
+              <div class="small-muted">الباقي</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  cardsRow.innerHTML = `<div class="row">${cardCols}</div>`;
+
+  // transactions table
+  txTable.innerHTML = '';
+  const txs = data.transactions.slice().reverse();
+  if(txs.length === 0){
+    txTable.innerHTML = `<tr><td colspan="5" class="text-center small-muted">لا توجد معاملات حتى الآن</td></tr>`;
+  } else {
+    txTable.innerHTML = txs.map((t, idx) => `
+      <tr>
+        <td style="white-space:nowrap">${t.date}</td>
+        <td>${categoryName(t.category)}</td>
+        <td>${t.amount} ر.ع</td>
+        <td>${t.note || ''}</td>
+        <td><button data-idx="${data.transactions.length-1-idx}" class="btn btn-sm btn-outline-danger delTx">حذف</button></td>
+      </tr>
+    `).join('');
+  }
+
+  // totals
+  let totalAllocated = 0, totalSpent = 0;
+  CATEGORIES.forEach(c=>{
+    const s = data.categories[c.id] || {alloc:c.alloc, spent:0};
+    totalAllocated += Number(s.alloc||0);
+    totalSpent += Number(s.spent||0);
+  });
+  const totalRemaining = +(totalAllocated - totalSpent).toFixed(2);
+  totalRemainingEl.textContent = `${totalRemaining} ر.ع`;
+
+  // charts
+  renderCharts();
+}
+
+/* ==== utilities ==== */
+function categoryName(id){
+  const c = CATEGORIES.find(x=>x.id===id);
+  return c ? c.name : id;
+}
+
+/* ==== add expense ==== */
+expForm.addEventListener('submit', e=>{
+  e.preventDefault();
+  const date = expDate.value || new Date().toISOString().slice(0,10);
+  const cat = expCategory.value;
+  const amt = parseFloat(expAmount.value);
+  const note = expNote.value;
+  if(isNaN(amt) || amt<=0) { alert('أدخلي مبلغ صالح'); return; }
+
+  ensureMonth(currentMonthKey);
+  const m = store.months[currentMonthKey];
+  m.transactions.push({ date, category:cat, amount:amt, note });
+  if(!m.categories[cat]) m.categories[cat] = { alloc: 0, spent: 0 };
+  m.categories[cat].spent = +( (m.categories[cat].spent || 0) + amt ).toFixed(2);
+  saveStore();
+  expForm.reset();
+  render();
+});
+
+/* ==== delete transaction ==== */
+txTable.addEventListener('click', e=>{
+  if(e.target.classList.contains('delTx')){
+    const idx = parseInt(e.target.dataset.idx,10);
+    if(!confirm('هل أنتِ متأكدة من حذف هذه المعاملة؟')) return;
+    const m = store.months[currentMonthKey];
+    const tx = m.transactions.splice(idx,1)[0];
+    if(tx && m.categories[tx.category]){
+      m.categories[tx.category].spent = +(m.categories[tx.category].spent - tx.amount).toFixed(2);
+      if(m.categories[tx.category].spent < 0) m.categories[tx.category].spent = 0;
+    }
+    saveStore();
+    render();
+  }
+});
+
+/* ==== init month button ==== */
+initMonthBtn.addEventListener('click', ()=>{
+  if(!confirm('سيتم تهيئة / إعادة ضبط بيانات هذا الشهر. استمري؟')) return;
+  // reset month to default allocations and empty transactions
+  store.months[monthSelect.value] = {
+    salary: store.settings.salary || DEFAULT_SALARY,
+    transactions: [],
+    categories: {}
+  };
+  CATEGORIES.forEach(c=>{
+    store.months[monthSelect.value].categories[c.id] = { alloc: c.alloc, spent: 0 };
+  });
+  saveStore();
+  render();
+});
+
+/* ==== end month / roll over leftovers ==== */
+endMonthBtn.addEventListener('click', ()=>{
+  if(!confirm('سيتم نقل الباقي من الفئات اليومية (الأكل، بترول، ترفيه) إلى المدخرات. استمرّي؟')) return;
+  ensureMonth(currentMonthKey);
+  const m = store.months[currentMonthKey];
+  // sum leftovers from daily categories
+  let transfer = 0;
+  CATEGORIES.filter(c=>c.type==='daily').forEach(c=>{
+    const st = m.categories[c.id] || { alloc:c.alloc, spent:0 };
+    const leftover = +(st.alloc - st.spent);
+    if(leftover>0) {
+      transfer += leftover;
+      st.spent = +(st.spent + leftover).toFixed(2); // consuming leftover (mark as spent so remaining becomes 0)
+    }
+  });
+  if(transfer > 0){
+    // add to savings allocation and record a transaction
+    if(!m.categories['savings']) m.categories['savings'] = { alloc: 0, spent: 0 };
+    // make savings' alloc larger by the transfer (reflect that money moved to savings)
+    m.categories['savings'].alloc = +( (m.categories['savings'].alloc || 0) + transfer ).toFixed(2);
+
+    // record transaction (as internal transfer)
+    m.transactions.push({
+      date: new Date().toISOString().slice(0,10),
+      category: 'savings',
+      amount: +transfer.toFixed(2),
+      note: 'نقل بقايا فئات يومية → مدخرات (نهاية الشهر)'
+    });
+
+    saveStore();
+    alert(`تم نقل ${transfer.toFixed(2)} ر.ع إلى المدخرات.`);
+  } else {
+    alert('لا يوجد مبالغ زائدة لنقلها.');
+  }
+  render();
+});
+
+/* ==== charts ==== */
+function renderCharts(){
+  const m = store.months[currentMonthKey];
+  const labels = CATEGORIES.map(c=>c.name);
+  const data = CATEGORIES.map(c=> (m.categories[c.id] ? m.categories[c.id].alloc : c.alloc) );
+  // pie chart
+  const pieCtx = document.getElementById('pieChart').getContext('2d');
+  if(pieChart) pieChart.destroy();
+  pieChart = new Chart(pieCtx, {
+    type: 'pie',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: [
+          '#f7c6d9','#f08fb8','#ffeede','#f4e0b1','#ffd9e6','#f6d6e0','#f3b2d0'
+        ]
+      }]
+    },
+    options: {
+      plugins: { legend: { position: 'bottom', labels: { boxWidth:12 } } }
+    }
+  });
+
+  // savings line chart across months
+  const months = Object.keys(store.months).sort();
+  const savingsSeries = months.map(k=>{
+    const mm = store.months[k];
+    return mm.categories && mm.categories['savings'] ? mm.categories['savings'].alloc : 0;
+  });
+  const labelNames = months.map(k=>{
+    const parts = k.split('-'); return `${parts[1]}/${parts[0].slice(-2)}`;
+  });
+  const savCtx = document.getElementById('savingsChart').getContext('2d');
+  if(savingsChart) savingsChart.destroy();
+  savingsChart = new Chart(savCtx, {
+    type: 'line',
+    data: {
+      labels: labelNames,
+      datasets: [{
+        label: 'مدخرات (مبلغ مخصص شهريًا أو محول)',
+        data: savingsSeries,
+        tension: 0.35,
+        fill: true,
+        backgroundColor: 'rgba(240,143,184,0.12)',
+        borderColor: '#f08fb8',
+        pointRadius:4
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero:true }
+      }
+    }
+  });
+}
+
+/* ==== export / import ==== */
+exportBtn.addEventListener('click', ()=>{
+  const data = JSON.stringify(store, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'ruq_budget_backup.json';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+importBtn.addEventListener('click', ()=> importFile.click());
+importFile.addEventListener('change', (e)=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const json = JSON.parse(reader.result);
+      if(confirm('هل تريد استبدال البيانات الحالية بالملف المستورد؟')) {
+        store = json;
+        saveStore();
+        render();
+        alert('تم استيراد البيانات.');
+      }
+    } catch(err){
+      alert('خطأ في ملف الاستيراد');
+    }
+  };
+  reader.readAsText(f);
+});
+
+/* ==== month change ==== */
+monthSelect.addEventListener('change', ()=>{
+  render();
+});
+
+/* ==== delete all (dev helper) - not exposed ==== */
+
+/* ==== misc ==== */
+function attachEvents(){
+  // delegate delete handled above
+}
+
+init();
+</script>
+
+</body>
+</html>
