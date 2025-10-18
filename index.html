@@ -45,7 +45,6 @@ footer{margin-top:30px;color:#7a5a67;font-size:0.9rem;}
   </header>
 
   <div id="app" style="display:none;">
-    <!-- نفس لوحة الميزانية السابقة -->
     <div id="budgetContainer"></div>
   </div>
 
@@ -69,7 +68,6 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-
 // ===== عناصر DOM =====
 const authContainer = document.getElementById('authContainer');
 const app = document.getElementById('app');
@@ -89,7 +87,7 @@ function showLogin(){
   `;
 
   document.getElementById('loginBtn').onclick = login;
-  document.getElementById('signupBtn').onclick = signup;
+  document.getElementById('signupBtn').onclick = signupStep1;
   document.getElementById('googleBtn').onclick = googleLogin;
 }
 
@@ -98,12 +96,58 @@ function login(){
   const password = document.getElementById('password').value;
   auth.signInWithEmailAndPassword(email,password).catch(e=>alert(e.message));
 }
-function signup(){
+
+function signupStep1(){
   const email = document.getElementById('email').value;
   const password = document.getElementById('password').value;
-  auth.createUserWithEmailAndPassword(email,password)
-  .catch(e=>alert(e.message));
+  if(!email || !password){alert("ادخلي البريد وكلمة المرور"); return;}
+  
+  // ننتقل للخطوة التالية لتحديد الراتب والأقسام
+  authContainer.innerHTML = `
+  <div class="card p-3 card-rose mx-auto" style="max-width:500px;">
+    <h5 class="mb-3 text-center">اعدادات الميزانية</h5>
+    <input type="number" id="salary" class="form-control mb-2" placeholder="ادخلي راتبك الشهري">
+    <input type="number" id="installments" class="form-control mb-2" placeholder="مبلغ الاقساط الشهرية (إن وجد)">
+    <div id="categoriesContainer"></div>
+    <button id="addCategoryBtn" class="btn btn-outline-primary w-100 mb-2">اضافة قسم</button>
+    <button id="finishSignupBtn" class="btn btn-gold w-100">انهاء التسجيل</button>
+  </div>
+  `;
+
+  const categoriesContainer = document.getElementById('categoriesContainer');
+  document.getElementById('addCategoryBtn').onclick = ()=>{
+    const div = document.createElement('div');
+    div.className = "d-flex gap-2 mb-2";
+    div.innerHTML = `
+      <input type="text" class="form-control category-name-input" placeholder="اسم القسم">
+      <input type="number" class="form-control category-amount-input" placeholder="المبلغ الشهري">
+    `;
+    categoriesContainer.appendChild(div);
+  };
+
+  document.getElementById('finishSignupBtn').onclick = async ()=>{
+    const salary = parseFloat(document.getElementById('salary').value)||0;
+    const installments = parseFloat(document.getElementById('installments').value)||0;
+    const categoryNames = Array.from(document.getElementsByClassName('category-name-input')).map(i=>i.value.trim()).filter(i=>i);
+    const categoryAmounts = Array.from(document.getElementsByClassName('category-amount-input')).map(i=>parseFloat(i.value)||0);
+    if(categoryNames.length===0){alert("أضيفي قسم واحد على الأقل"); return;}
+    const categories = {};
+    for(let i=0;i<categoryNames.length;i++){ categories[categoryNames[i]] = categoryAmounts[i]; }
+
+    // إنشاء المستخدم
+    auth.createUserWithEmailAndPassword(email,password)
+    .then(userCredential=>{
+      const uid = userCredential.user.uid;
+      db.collection('users').doc(uid).set({
+        salary,
+        installments,
+        categories,
+        dailyExpenses: []
+      });
+    }).catch(e=>alert(e.message));
+  };
 }
+
 function googleLogin(){
   const provider = new firebase.auth.GoogleAuthProvider();
   auth.signInWithPopup(provider).catch(e=>alert(e.message));
@@ -122,14 +166,96 @@ auth.onAuthStateChanged(user=>{
   }
 });
 
-// ===== تحميل بيانات المستخدم =====
-function loadUserData(uid){
-  budgetContainer.innerHTML = `<div class="text-center">جار تحميل البيانات...</div>`;
-  // هنا نضيف نفس لوحة Budget Planner التي عملناها مسبقًا
-  // كل بيانات المصروفات + المدخرات + الرسوم البيانية يجب تخزينها في Firestore تحت collection "users" -> doc(uid)
-  // يمكننا استخدام نفس الكود السابق مع تعديل الحفظ والتحميل عبر Firestore
+// ===== تحميل بيانات المستخدم + لوحة Budget Planner =====
+async function loadUserData(uid){
+  const docRef = db.collection('users').doc(uid);
+  const docSnap = await docRef.get();
+  if(!docSnap.exists){
+    budgetContainer.innerHTML = `<div class="text-center">خطأ: البيانات غير موجودة</div>`;
+    return;
+  }
+  const data = docSnap.data();
+  renderBudget(data, uid);
 }
 
+function renderBudget(data, uid){
+  budgetContainer.innerHTML = `
+  <div class="card p-3 card-rose">
+    <h5 class="mb-3">لوحة الميزانية</h5>
+    <div class="mb-3">
+      <input type="date" id="expenseDate" class="form-control mb-2" value="${new Date().toISOString().split('T')[0]}">
+      <div id="expenseInputs"></div>
+      <button id="addExpenseBtn" class="btn btn-outline-primary mb-2">اضافة المصروفات</button>
+      <button id="endMonthBtn" class="btn btn-gold mb-2">نهاية الشهر → تحويل الباقي للادخار</button>
+    </div>
+    <canvas id="pieChart" height="200"></canvas>
+  </div>
+  `;
+
+  const expenseInputs = document.getElementById('expenseInputs');
+  for(const cat in data.categories){
+    const div = document.createElement('div');
+    div.className = "d-flex gap-2 mb-2";
+    div.innerHTML = `
+      <span class="category-name w-50">${cat}</span>
+      <input type="number" class="form-control w-50 expense-input" placeholder="المصروف اليومي" data-cat="${cat}">
+    `;
+    expenseInputs.appendChild(div);
+  }
+
+  document.getElementById('addExpenseBtn').onclick = async ()=>{
+    const date = document.getElementById('expenseDate').value;
+    const newExpenses = {};
+    Array.from(document.getElementsByClassName('expense-input')).forEach(input=>{
+      const val = parseFloat(input.value)||0;
+      newExpenses[input.dataset.cat] = val;
+      input.value='';
+    });
+    // حفظ المصروفات اليومية
+    const docRef = db.collection('users').doc(uid);
+    const docSnap = await docRef.get();
+    const docData = docSnap.data();
+    const updatedExpenses = docData.dailyExpenses || [];
+    updatedExpenses.push({date, ...newExpenses});
+    await docRef.update({dailyExpenses: updatedExpenses});
+    renderBudget(docData, uid); // إعادة عرض
+  };
+
+  document.getElementById('endMonthBtn').onclick = async ()=>{
+    // حساب الباقي لكل قسم وتحويله للادخار
+    const docRef = db.collection('users').doc(uid);
+    const docSnap = await docRef.get();
+    const docData = docSnap.data();
+    const totals = {};
+    for(const cat in docData.categories){ totals[cat] = 0; }
+    (docData.dailyExpenses||[]).forEach(d=>{
+      for(const cat in docData.categories){
+        totals[cat] += d[cat]||0;
+      }
+    });
+    const newCategories = {...docData.categories};
+    if(newCategories['مدخرات']!==undefined){
+      for(const cat in newCategories){
+        if(cat!=='مدخرات'){
+          newCategories['مدخرات'] += Math.max(0,newCategories[cat]-totals[cat]);
+        }
+      }
+    }
+    await docRef.update({categories:newCategories, dailyExpenses:[]});
+    alert("تم تحويل الباقي للادخار ومسح المصروفات الشهرية");
+    renderBudget({...docData, categories:newCategories, dailyExpenses:[]}, uid);
+  };
+
+  // رسم Pie Chart
+  const ctx = document.getElementById('pieChart').getContext('2d');
+  const labels = Object.keys(data.categories);
+  const values = Object.values(data.categories);
+  new Chart(ctx, {
+    type:'pie',
+    data:{labels, datasets:[{data:values, backgroundColor:['#f7c6d9','#f08fb8','#d6b86a','#fff6f3','#f0a6c0','#e2c6d9']}]},
+    options:{responsive:true}
+  });
+}
 </script>
 </body>
 </html>
