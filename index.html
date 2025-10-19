@@ -1,463 +1,323 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>راتبي الذكي — Budget Planner</title>
 
-  <!-- Bootstrap 5 CDN -->
+  <!-- Bootstrap 5 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-  <!-- Chart.js CDN -->
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
   <style>
     :root{
-      --royal-blue: #1a237e;
-      --light-blue: #536dfe;
-      --card-shadow: 0 6px 18px rgba(26,35,126,0.15);
-      --text-dark: #2b2b2b;
+      --royal-blue:#1a237e;
+      --light-blue:#3f51b5;
+      --card-shadow:0 6px 18px rgba(26,35,126,0.15);
+      --text-main:#1a237e;
     }
-    body{
-      background: #f7f9fc;
-      color: var(--text-dark);
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      padding-bottom:40px;
-    }
-    .brand {
-      display:flex;gap:12px;align-items:center;
-    }
-    .brand .logo {
-      width:48px;height:48px;border-radius:12px;
-      background: var(--royal-blue);
-      display:flex;align-items:center;justify-content:center;
-      color:white;font-weight:700;font-size:1.2rem;
-    }
-    .card-blue{
-      background: #e8eaf6;
-      border: none;
-      box-shadow: var(--card-shadow);
-      border-radius:14px;
-    }
-    .stat-card { border-radius:12px; padding:18px; background: white; box-shadow: var(--card-shadow);}
-    .category-name { font-weight:700; font-size:0.95rem; color:var(--royal-blue);}
-    .small-muted { color:#6b6b6b; font-size:0.88rem }
-    .btn-primary-custom { background: var(--royal-blue); color:white; border:none;}
-    .btn-outline-custom { border-color: var(--royal-blue); color: var(--royal-blue);}
-    .btn-outline-custom:hover { background: var(--royal-blue); color:white;}
-    table thead th { border-bottom:0; }
-    .form-control:focus { box-shadow: none; border-color: var(--royal-blue); }
-    footer { margin-top:30px; color:#6b6b6b; font-size:0.9rem; }
-    .rounded-card { border-radius:12px; }
-    .note { font-size:0.86rem; color:#6b6b6b; }
+    body{font-family:"Segoe UI",sans-serif;background:#f5f5f5;color:var(--text-main);}
+    .rounded-card{border-radius:12px;box-shadow:var(--card-shadow);}
+    .btn-primary{background:var(--royal-blue);border:none;}
+    .btn-primary:hover{background:var(--light-blue);}
+    .stat-card{border-radius:12px;padding:12px;background:white;}
+    .category-name{font-weight:700;font-size:0.95rem;}
+    .small-muted{color:#666;font-size:0.85rem;}
+    canvas{max-height:200px;}
+    .text-success{color:#2e7d32!important;}
+    .text-warning{color:#f9a825!important;}
+    .text-danger{color:#c62828!important;}
   </style>
 </head>
 <body>
 
 <div class="container py-4">
-  <header class="d-flex justify-content-between align-items-center mb-3">
-    <div class="brand">
-      <div class="logo">R</div>
-      <div>
-        <h4 class="mb-0">راتبي الذكي</h4>
-        <div class="small-muted">منظّم راتبك بطريقة سهلة وتلقائية 💗</div>
-      </div>
-    </div>
 
-    <div class="text-end">
-      <div class="mb-2">الراتب الافتراضي</div>
-      <div class="d-flex gap-2 align-items-center">
-        <div class="fw-bold fs-5" id="salaryDisplay">0 ر.ع</div>
-        <button id="exportBtn" class="btn btn-sm btn-outline-custom">Backup</button>
-        <input id="importFile" type="file" accept="application/json" style="display:none" />
-        <button id="importBtn" class="btn btn-sm btn-outline-custom">استيراد</button>
+  <!-- ===== شاشة تسجيل الدخول / اختيار الأقسام ===== -->
+  <div id="loginScreen" class="mb-4">
+    <div class="card p-4 rounded-card text-center">
+      <h4 class="mb-3">مرحبًا في راتبي الذكي</h4>
+      <div class="mb-3">
+        <label class="form-label">اسمك:</label>
+        <input type="text" id="userName" class="form-control" placeholder="أدخلي اسمك">
       </div>
-    </div>
-  </header>
-
-  <!-- Controls -->
-  <div class="row g-3 mb-3">
-    <div class="col-md-4">
-      <div class="card card-blue p-3 rounded-card">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <div class="small-muted">اختر الشهر</div>
-            <select id="monthSelect" class="form-select mt-1"></select>
-          </div>
-          <div class="text-end">
-            <div class="small-muted">السنة</div>
-            <div id="yearLabel" class="fw-bold">2025</div>
-          </div>
-        </div>
-        <div class="mt-3 d-flex gap-2 flex-column">
-          <button id="initMonth" class="btn btn-primary-custom w-100">تهيئة / إعادة ضبط الشهر</button>
-          <button id="endMonth" class="btn btn-outline-custom w-100">نهاية الشهر — تحويل الباقي</button>
-        </div>
-        <div class="mt-2 note">باقي المبلغ من الفئات اليومية سينتقل تلقائيًا للمدخرات عند الضغط على نهاية الشهر.</div>
+      <div class="mb-3">
+        <label class="form-label">اختاري الأقسام التي تريدين تتبعها:</label>
+        <div id="categoryCheckboxes" class="d-flex flex-wrap gap-2"></div>
       </div>
-    </div>
-
-    <div class="col-md-8">
-      <div class="card p-3 rounded-card">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <div class="small-muted">ملخص الشهر</div>
-            <div class="fs-5 fw-bold" id="salaryMonthDisplay">0 ر.ع</div>
-          </div>
-          <div class="text-end">
-            <div class="small-muted">المتبقي الكلي</div>
-            <div class="fs-5 fw-bold text-success" id="totalRemaining">0 ر.ع</div>
-          </div>
-        </div>
-        <div class="mt-3" id="cardsRow"></div>
-      </div>
+      <button id="startBtn" class="btn btn-primary w-50">ابدأي</button>
     </div>
   </div>
 
-  <!-- Transactions & Add -->
-  <div class="row g-3">
-    <div class="col-lg-6">
-      <div class="card card-blue p-3 rounded-card">
-        <h6 class="mb-3">أضف مصروفًا</h6>
-        <form id="expenseForm" class="row gx-2 gy-2 align-items-end">
-          <div class="col-12">
-            <label class="form-label small-muted">التاريخ</label>
-            <input id="expDate" type="date" class="form-control" required />
-          </div>
-          <div class="col-12">
-            <label class="form-label small-muted">الفئة</label>
-            <select id="expCategory" class="form-select"></select>
-          </div>
-          <div class="col-6">
-            <label class="form-label small-muted">المبلغ (ر.ع)</label>
-            <input id="expAmount" type="number" class="form-control" min="0" step="0.1" required />
-          </div>
-          <div class="col-6">
-            <label class="form-label small-muted">ملاحظة</label>
-            <input id="expNote" type="text" class="form-control" placeholder="مثلاً: غداء مع صديقات" />
-          </div>
-          <div class="col-12">
-            <button class="btn btn-primary-custom w-100" type="submit">أضف المصروف</button>
-          </div>
-        </form>
+  <!-- ===== الصفحة الرئيسية ===== -->
+  <div id="mainScreen" style="display:none;">
+    <header class="d-flex justify-content-between align-items-center mb-3">
+      <h4>راتبي الذكي</h4>
+      <div class="text-end">
+        <div class="mb-1">مرحبًا، <span id="displayUser"></span></div>
+        <button id="logoutBtn" class="btn btn-outline-secondary btn-sm">تسجيل الخروج</button>
       </div>
+    </header>
 
-      <div class="card p-3 mt-3 rounded-card">
-        <h6 class="mb-2">سجل المعاملات للشهر</h6>
-        <div style="max-height:280px; overflow:auto;">
-          <table class="table table-sm">
-            <thead>
-              <tr>
-                <th>التاريخ</th><th>الفئة</th><th>المبلغ</th><th>ملاحظات</th><th></th>
-              </tr>
-            </thead>
-            <tbody id="txTable"></tbody>
-          </table>
+    <!-- الراتب وبطاقات الأقسام -->
+    <div class="row g-3 mb-3">
+      <div class="col-md-12">
+        <div class="card p-3 rounded-card mb-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="small-muted">الراتب الحالي</div>
+              <div class="fs-5 fw-bold" id="salaryDisplay">0 ر.ع</div>
+            </div>
+            <div class="text-end">
+              <div class="small-muted">المتبقي الكلي</div>
+              <div class="fs-5 fw-bold text-success" id="totalRemaining">0 ر.ع</div>
+            </div>
+          </div>
+          <div class="mt-3" id="cardsRow" class="row g-2"></div>
         </div>
       </div>
     </div>
 
-    <!-- Charts -->
-<!-- Charts -->
-<div class="col-lg-6">
-  <div class="card p-2 rounded-card mb-3">
-    <h6 class="mb-1" style="font-size:0.9rem;">توزيع الراتب (بالتخصيص)</h6>
-    <canvas id="pieChart" height="120"></canvas>
-  </div>
+    <!-- إضافة مصروف -->
+    <div class="row g-3 mb-3">
+      <div class="col-lg-6">
+        <div class="card p-3 rounded-card">
+          <h6 class="mb-3">أضيفي مصروف</h6>
+          <form id="expenseForm" class="row gx-2 gy-2 align-items-end">
+            <div class="col-6">
+              <label class="form-label small-muted">الفئة</label>
+              <select id="expCategory" class="form-select"></select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small-muted">المبلغ (ر.ع)</label>
+              <input id="expAmount" type="number" class="form-control" min="0" step="0.1" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small-muted">اليوم</label>
+              <input id="expDay" type="number" class="form-control" min="1" max="31" value="1" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small-muted">ملاحظة</label>
+              <input id="expNote" type="text" class="form-control" placeholder="مثلاً: غداء">
+            </div>
+            <div class="col-12">
+              <button class="btn btn-primary w-100" type="submit">أضف المصروف</button>
+            </div>
+          </form>
+        </div>
+      </div>
 
-  <div class="card p-2 rounded-card">
-    <h6 class="mb-1" style="font-size:0.9rem;">تراكم المدخرات عبر الشهور</h6>
-    <canvas id="savingsChart" height="120"></canvas>
-  </div>
-</div>
+      <!-- الشارتات -->
+      <div class="col-lg-6">
+        <div class="card p-3 rounded-card mb-3">
+          <h6>توزيع الأقسام</h6>
+          <canvas id="pieChart"></canvas>
+        </div>
+        <div class="card p-3 rounded-card mb-3">
+          <h6>تراكم المدخرات</h6>
+          <canvas id="savingsChart"></canvas>
+        </div>
+        <div class="card p-3 rounded-card">
+          <h6>مصروفات كل يوم</h6>
+          <canvas id="dailyChart"></canvas>
+        </div>
+      </div>
+    </div>
 
-  </div>
+    <!-- سجل المعاملات -->
+    <div class="card p-3 rounded-card mb-3">
+      <h6 class="mb-2">سجل المعاملات</h6>
+      <div style="max-height:250px; overflow:auto;">
+        <table class="table table-sm">
+          <thead>
+            <tr><th>الفئة</th><th>المبلغ</th><th>اليوم</th><th>ملاحظة</th><th></th></tr>
+          </thead>
+          <tbody id="txTable"></tbody>
+        </table>
+      </div>
+    </div>
 
-  <footer class="text-center mt-4">
-    مصمم لكِ — راتبي الذكي • احفظي الملف وارفعيه على GitHub Pages أو أي استضافة ثابتة لعرضه على النت.
-  </footer>
+    <!-- النسخ الاحتياطي / الاستيراد -->
+    <div class="mb-4 d-flex gap-2">
+      <button id="exportBtn" class="btn btn-outline-secondary">Backup</button>
+      <input id="importFile" type="file" accept="application/json" style="display:none">
+      <button id="importBtn" class="btn btn-outline-secondary">استيراد</button>
+    </div>
+  </div>
 </div>
 
 <script>
-const STORAGE_KEY = 'ruq_budget_v2';
-let store = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-let currentMonthKey = '';
-let CATEGORIES = [];
+let CATEGORIES=[
+  {id:'savings', name:'ادخار', alloc:1000, type:'savings'},
+  {id:'petrol', name:'بترول', alloc:300, type:'daily'},
+  {id:'investment', name:'استثمار', alloc:500, type:'investment'},
+  {id:'insurance', name:'تأمين وتجديد السيارة', alloc:400, type:'fixed'},
+  {id:'emergency', name:'طواري', alloc:200, type:'daily'},
+  {id:'zakat', name:'زكاة', alloc:150, type:'fixed'},
+  {id:'entertainment', name:'ترفيه', alloc:250, type:'daily'},
+  {id:'food', name:'اكل', alloc:600, type:'daily'}
+];
 
-const monthSelect = document.getElementById('monthSelect');
-const yearLabel = document.getElementById('yearLabel');
-const initMonthBtn = document.getElementById('initMonth');
-const endMonthBtn = document.getElementById('endMonth');
-const cardsRow = document.getElementById('cardsRow');
-const salaryDisplay = document.getElementById('salaryDisplay');
-const salaryMonthDisplay = document.getElementById('salaryMonthDisplay');
-const totalRemainingEl = document.getElementById('totalRemaining');
-const expForm = document.getElementById('expenseForm');
-const expCategory = document.getElementById('expCategory');
-const expDate = document.getElementById('expDate');
-const expAmount = document.getElementById('expAmount');
-const expNote = document.getElementById('expNote');
-const txTable = document.getElementById('txTable');
-const exportBtn = document.getElementById('exportBtn');
-const importBtn = document.getElementById('importBtn');
-const importFile = document.getElementById('importFile');
+const STORAGE_KEY='ruq_budget_v2';
+let store={user:'',categories:[],transactions:[]};
+let pieChart,savingsChart,dailyChart;
 
-let pieChart, savingsChart;
+const loginScreen=document.getElementById('loginScreen');
+const mainScreen=document.getElementById('mainScreen');
+const startBtn=document.getElementById('startBtn');
+const userName=document.getElementById('userName');
+const categoryCheckboxes=document.getElementById('categoryCheckboxes');
+const displayUser=document.getElementById('displayUser');
+const expCategory=document.getElementById('expCategory');
+const expDay=document.getElementById('expDay');
+const expForm=document.getElementById('expenseForm');
+const expAmount=document.getElementById('expAmount');
+const expNote=document.getElementById('expNote');
+const cardsRow=document.getElementById('cardsRow');
+const txTable=document.getElementById('txTable');
+const salaryDisplay=document.getElementById('salaryDisplay');
+const totalRemainingEl=document.getElementById('totalRemaining');
+const exportBtn=document.getElementById('exportBtn');
+const importBtn=document.getElementById('importBtn');
+const importFile=document.getElementById('importFile');
+const logoutBtn=document.getElementById('logoutBtn');
 
-function init(){
-  populateMonthSelect();
-  currentMonthKey = monthSelect.value;
-  loadCategories();
-  render();
-  attachEvents();
+function renderLogin(){
+  categoryCheckboxes.innerHTML = CATEGORIES.map(c=>`<div class="form-check">
+      <input class="form-check-input" type="checkbox" value="${c.id}" id="chk_${c.id}">
+      <label class="form-check-label" for="chk_${c.id}">${c.name}</label>
+    </div>`).join('');
 }
 
-function populateMonthSelect(){
-  const now = new Date();
-  const year = now.getFullYear();
-  const months = [];
-  for(let m=0;m<12;m++){
-    const key = `${year}-${String(m+1).padStart(2,'0')}`;
-    const name = new Date(year,m,1).toLocaleString('ar-EG',{month:'long'});
-    months.push({key,name});
-  }
-  monthSelect.innerHTML = months.map(m=>`<option value="${m.key}">${m.name} ${year}</option>`).join('');
-  yearLabel.textContent = year;
-  monthSelect.value = `${year}-${String(now.getMonth()+1).padStart(2,'0')}`;
-}
-
-function loadCategories(){
-  // جلب الأقسام الفعلية من النظام (store)
-  if(!store[currentMonthKey]) store[currentMonthKey] = {salary:0, categories:{}, transactions:[]};
-
-  CATEGORIES = Object.keys(store[currentMonthKey].categories).map(id=>{
-    const c = store[currentMonthKey].categories[id];
-    return {...c,id};
+startBtn.addEventListener('click',()=>{
+  const name=userName.value.trim();
+  if(!name){alert('أدخلي اسمك');return;}
+  const selected=[];
+  CATEGORIES.forEach(c=>{
+    const chk=document.getElementById('chk_'+c.id);
+    if(chk.checked) selected.push({...c});
   });
-
-  expCategory.innerHTML = CATEGORIES.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-}
-
-function saveStore(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-}
-
-function render(){
-  currentMonthKey = monthSelect.value;
-  if(!store[currentMonthKey]) store[currentMonthKey] = {salary:0, categories:{}, transactions:[]};
-  const data = store[currentMonthKey];
-
-  salaryDisplay.textContent = `${data.salary || 0} ر.ع`;
-  salaryMonthDisplay.textContent = `${data.salary || 0} ر.ع`;
-
-  // بطاقات الفئات
-  cardsRow.innerHTML = '';
-  const cardsHtml = Object.keys(data.categories).map(id=>{
-    const c = data.categories[id];
-    const remaining = (c.alloc - (c.spent||0)).toFixed(2);
-    return `
-      <div class="col-md-4 mb-2">
-        <div class="stat-card">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <div class="category-name">${c.name}</div>
-              <div class="small-muted">${c.type}</div>
-            </div>
-            <div class="text-end">
-              <div class="fw-bold">${c.alloc} ر.ع</div>
-              <div class="small-muted">المخصص</div>
-            </div>
-          </div>
-          <hr />
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <div class="fw-bold">${c.spent||0} ر.ع</div>
-              <div class="small-muted">مصروف فعلي</div>
-            </div>
-            <div class="${remaining>=0?'text-success':'text-danger'}">
-              <div class="fw-bold">${remaining} ر.ع</div>
-              <div class="small-muted">الباقي</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-  cardsRow.innerHTML = `<div class="row">${cardsHtml}</div>`;
-
-  // سجل المعاملات
-  const txs = (data.transactions||[]).slice().reverse();
-  if(txs.length===0){
-    txTable.innerHTML = `<tr><td colspan="5" class="text-center small-muted">لا توجد معاملات حتى الآن</td></tr>`;
-  } else {
-    txTable.innerHTML = txs.map((t,idx)=>`
-      <tr>
-        <td>${t.date}</td>
-        <td>${t.category}</td>
-        <td>${t.amount} ر.ع</td>
-        <td>${t.note||''}</td>
-        <td><button data-idx="${data.transactions.length-1-idx}" class="btn btn-sm btn-outline-danger delTx">حذف</button></td>
-      </tr>
-    `).join('');
-  }
-
-  // إجمالي الباقي
-  let totalAlloc = 0, totalSpent = 0;
-  Object.values(data.categories).forEach(c=>{
-    totalAlloc += c.alloc||0;
-    totalSpent += c.spent||0;
-  });
-  totalRemainingEl.textContent = (totalAlloc-totalSpent).toFixed(2)+' ر.ع';
-
+  if(selected.length===0){alert('اختاري على الأقل قسم واحد');return;}
+  store.user=name;
+  store.categories=selected;
+  store.transactions=[];
+  saveStore();
+  displayUser.textContent=name;
+  loginScreen.style.display='none';
+  mainScreen.style.display='block';
+  renderCards();
+  renderTransactions();
   renderCharts();
+  populateCategorySelect();
+});
+
+logoutBtn.addEventListener('click',()=>{
+  if(!confirm('هل تريد تسجيل الخروج؟')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+});
+
+function saveStore(){localStorage.setItem(STORAGE_KEY,JSON.stringify(store));}
+function loadStore(){const raw=localStorage.getItem(STORAGE_KEY);return raw?JSON.parse(raw):null;}
+window.addEventListener('load',()=>{
+  const saved=loadStore();
+  if(saved && saved.user){
+    store=saved;
+    loginScreen.style.display='none';
+    mainScreen.style.display='block';
+    displayUser.textContent=store.user;
+    renderCards();
+    renderTransactions();
+    renderCharts();
+    populateCategorySelect();
+  } else renderLogin();
+});
+
+function renderCards(){
+  cardsRow.innerHTML='';
+  store.categories.forEach(c=>{
+    const spent=store.transactions.filter(t=>t.category===c.id).reduce((a,b)=>a+b.amount,0);
+    const remaining=c.alloc-spent;
+    let color='text-success';
+    if(remaining<=c.alloc*0.2 && remaining>0) color='text-warning';
+    if(remaining<=0) color='text-danger';
+    const card=document.createElement('div');
+    card.className='col-md-3 mb-2';
+    card.innerHTML=`<div class="stat-card">
+      <div class="d-flex justify-content-between">
+        <div class="category-name">${c.name}</div>
+        <div class="${color} fw-bold">${remaining.toFixed(2)} ر.ع</div>
+      </div>
+      <div class="small-muted">المخصص: ${c.alloc} ر.ع | مصروف: ${spent.toFixed(2)} ر.ع</div>
+    </div>`;
+    cardsRow.appendChild(card);
+  });
+  updateTotalRemaining();
+}
+function updateTotalRemaining(){
+  const total=store.categories.reduce((sum,c)=>{
+    const spent=store.transactions.filter(t=>t.category===c.id).reduce((a,b)=>a+b.amount,0);
+    return sum+(c.alloc-spent);
+  },0);
+  totalRemainingEl.textContent=total.toFixed(2)+' ر.ع';
 }
 
-function attachEvents(){
-  monthSelect.addEventListener('change', ()=>{
-    loadCategories();
-    render();
-  });
-
-  expForm.addEventListener('submit', e=>{
-    e.preventDefault();
-    const date = expDate.value || new Date().toISOString().slice(0,10);
-    const catId = expCategory.value;
-    const amt = parseFloat(expAmount.value);
-    const note = expNote.value;
-    if(isNaN(amt)||amt<=0){alert('أدخلي مبلغ صالح'); return;}
-
-    const monthData = store[currentMonthKey];
-    monthData.transactions.push({date, category:catId, amount:amt, note});
-    if(!monthData.categories[catId].spent) monthData.categories[catId].spent=0;
-    monthData.categories[catId].spent += amt;
-    saveStore();
-    expForm.reset();
-    render();
-  });
-
-  txTable.addEventListener('click', e=>{
-    if(e.target.classList.contains('delTx')){
-      const idx = parseInt(e.target.dataset.idx,10);
-      if(!confirm('هل أنتِ متأكدة من حذف هذه المعاملة؟')) return;
-      const monthData = store[currentMonthKey];
-      const tx = monthData.transactions.splice(idx,1)[0];
-      if(tx) monthData.categories[tx.category].spent -= tx.amount;
-      saveStore();
-      render();
-    }
-  });
-
-  initMonthBtn.addEventListener('click', ()=>{
-    if(!confirm('سيتم تهيئة / إعادة ضبط بيانات هذا الشهر. استمري؟')) return;
-    store[currentMonthKey].transactions=[];
-    Object.values(store[currentMonthKey].categories).forEach(c=>c.spent=0);
-    saveStore();
-    render();
-  });
-
-  endMonthBtn.addEventListener('click', ()=>{
-    if(!confirm('سيتم نقل الباقي من الفئات اليومية إلى المدخرات. استمرّي؟')) return;
-    const monthData = store[currentMonthKey];
-    let transfer=0;
-    Object.values(monthData.categories).forEach(c=>{
-      if(c.type==='daily'){
-        const leftover = (c.alloc - (c.spent||0));
-        if(leftover>0){
-          transfer+=leftover;
-          c.spent += leftover;
-        }
-      }
-    });
-    if(transfer>0){
-      if(!monthData.categories['savings']) monthData.categories['savings']={alloc:0, spent:0};
-      monthData.categories['savings'].alloc += transfer;
-      monthData.transactions.push({
-        date: new Date().toISOString().slice(0,10),
-        category:'savings',
-        amount:transfer,
-        note:'نقل بقايا فئات يومية → مدخرات'
-      });
-      saveStore();
-      alert(`تم نقل ${transfer.toFixed(2)} ر.ع إلى المدخرات.`);
-    } else alert('لا يوجد مبالغ زائدة لنقلها.');
-    render();
-  });
-
-  exportBtn.addEventListener('click', ()=>{
-    const data = JSON.stringify(store,null,2);
-    const blob = new Blob([data],{type:'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download='ruq_budget_backup.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-
-  importBtn.addEventListener('click', ()=> importFile.click());
-  importFile.addEventListener('change', e=>{
-    const f = e.target.files[0];
-    if(!f) return;
-    const reader = new FileReader();
-    reader.onload=()=>{
-      try{
-        const json = JSON.parse(reader.result);
-        if(confirm('هل تريد استبدال البيانات الحالية بالملف المستورد؟')){
-          store=json;
-          saveStore();
-          render();
-          alert('تم استيراد البيانات.');
-        }
-      }catch(err){ alert('الملف غير صالح'); }
-    };
-    reader.readAsText(f);
-  });
+function populateCategorySelect(){
+  expCategory.innerHTML=store.categories.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
 }
 
-// Charts
+expForm.addEventListener('submit',e=>{
+  e.preventDefault();
+  const cat=expCategory.value;
+  const amt=parseFloat(expAmount.value);
+  const day=parseInt(expDay.value,10);
+  const note=expNote.value;
+  if(isNaN(amt)||amt<=0){alert('أدخلي مبلغ صالح');return;}
+  if(isNaN(day)||day<1||day>31){alert('أدخلي يوم صالح');return;}
+  store.transactions.push({category:cat,amount:amt,note:note||'',day:day});
+  saveStore();
+  expForm.reset();
+  renderCards();
+  renderTransactions();
+  renderCharts();
+});
+
+function renderTransactions(){
+  txTable.innerHTML='';
+  if(store.transactions.length===0){txTable.innerHTML='<tr><td colspan="5" class="text-center small-muted">لا توجد معاملات</td></tr>';return;}
+  store.transactions.slice().reverse().forEach((t,idx)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${categoryName(t.category)}</td><td>${t.amount.toFixed(2)} ر.ع</td><td>${t.day}</td><td>${t.note}</td><td><button class="btn btn-sm btn-outline-danger delTx" data-idx="${store.transactions.length-1-idx}">حذف</button></td>`;
+    txTable.appendChild(tr);
+  });
+}
+txTable.addEventListener('click',e=>{
+  if(e.target.classList.contains('delTx')){
+    const idx=parseInt(e.target.dataset.idx,10);
+    if(!confirm('هل تريد حذف المعاملة؟')) return;
+    store.transactions.splice(idx,1);
+    saveStore();
+    renderCards();
+    renderTransactions();
+    renderCharts();
+  }
+});
+function categoryName(id){const c=store.categories.find(x=>x.id===id);return c?c.name:id;}
+
 function renderCharts(){
-  const monthData = store[currentMonthKey];
-  const labels = Object.keys(monthData.categories);
-  const dataVals = labels.map(id=>{
-    const c = monthData.categories[id];
-    return c.alloc;
-  });
-
-  const colors = ['#1a237e','#283593','#3949ab','#5c6bc0','#7986cb','#9fa8da','#c5cae9','#e8eaf6'];
-
+  const pieCtx=document.getElementById('pieChart').getContext('2d');
   if(pieChart) pieChart.destroy();
-  const ctx = document.getElementById('pieChart').getContext('2d');
-  pieChart = new Chart(ctx,{
-    type:'pie',
-    data:{labels:labels.map(id=>monthData.categories[id].name), datasets:[{data:dataVals, backgroundColor:colors}]},
-    options:{plugins:{legend:{position:'bottom'}}}
-  });
+  pieChart=new Chart(pieCtx,{type:'pie',data:{labels:store.categories.map(c=>c.name),datasets:[{data:store.categories.map(c=>c.alloc - store.transactions.filter(t=>t.category===c.id).reduce((a,b)=>a+b.amount,0)),backgroundColor:['#1a237e','#3949ab','#5c6bc0','#7986cb','#9fa8da','#c5cae9','#e8eaf6','#283593','#303f9f']}]},options:{plugins:{legend:{position:'bottom',labels:{boxWidth:12}}}}});
 
-  // مدخرات تراكمية
-  const months = Object.keys(store).sort();
-  const savingsData = months.map(k=>store[k].categories['savings']?.alloc || 0);
+  const savCtx=document.getElementById('savingsChart').getContext('2d');
   if(savingsChart) savingsChart.destroy();
-  const ctx2 = document.getElementById('savingsChart').getContext('2d');
-  savingsChart = new Chart(ctx2,{
-    type:'line',
-    data:{
-      labels:months,
-      datasets:[{
-        label:'مدخرات',
-        data:savingsData,
-        borderColor:'#1a237e',
-        backgroundColor:'#7986cb33',
-        fill:true,
-        tension:0.3
-      }]
-    },
-    options:{plugins:{legend:{display:true}}, scales:{y:{beginAtZero:true}}}
-  });
-}
+  const saved=store.transactions.filter(t=>t.category==='savings').reduce((a,b)=>a+b.amount,0);
+  savingsChart=new Chart(savCtx,{type:'bar',data:{labels:['مدخرات'],datasets:[{label:'المبلغ',data:[saved],backgroundColor:'#1a237e'}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
 
-init();
-</script>
-
-</body>
-</html>
-
+  const dailyCtx=document.getElementById('dailyChart').getContext('2d');
+  if(dailyChart) dailyChart.destroy();
+  const days=[...Array(31).keys()].map(i=>i+1);
+  const dailyTotals=days.map(d=>store.transactions.filter(t=>t.day===d).reduce((a,b)=>a+b.amount,0));
+  dailyChart=new Chart(dailyCtx,{type:'bar',data:{labels:days,datasets:[{label:'مصروف اليوم',data:dailyTotals,backgroundColor:'#3f51b5'}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true
