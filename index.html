@@ -10,12 +10,15 @@
 
 <style>
 :root{
-  --royal-blue:#1a237e;
-  --light-blue:#3949ab;
-  --accent-gold:#ffc107;
+  --royal-dark:#0d1b5f;
+  --royal-light:#3f51b5;
+  --accent-gold:#ffb300;
+  --success-green:#4caf50;
+  --warning-yellow:#ffc107;
+  --danger-red:#f44336;
 }
 body{
-  background: #f8f9fa;
+  background:#f4f6f9;
   font-family:"Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   padding-bottom:40px;
 }
@@ -26,43 +29,56 @@ body{
   margin-bottom:20px;
   background-color:#fff;
 }
-.btn-royal{ background: var(--royal-blue); color:white; border:none;}
-.btn-royal:hover{ background: var(--light-blue);}
+.btn-royal{ background: var(--royal-dark); color:white; border:none;}
+.btn-royal:hover{ background: var(--royal-light);}
+.form-control:focus{ box-shadow:none; border-color: var(--royal-dark);}
 .prediction-item{
   display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-radius:8px; margin-bottom:5px; cursor:pointer;
   transition: all 0.2s;
 }
 .prediction-item:hover{ background-color:#f1f1f1;}
-.status-green{ background-color:#d4edda; color:#155724;}
-.status-yellow{ background-color:#fff3cd; color:#856404;}
-.status-red{ background-color:#f8d7da; color:#721c24;}
-.daily-details{ font-size:0.85rem; color:#1a237e; margin-top:4px; display:none;}
-.note{ font-size:0.86rem; color:#1a237e;}
+.status-green{ background-color:var(--success-green); color:white;}
+.status-yellow{ background-color:var(--warning-yellow); color:#000;}
+.status-red{ background-color:var(--danger-red); color:white;}
+.daily-details{ font-size:0.85rem; color:var(--royal-dark); margin-top:4px; display:none;}
+.note{ font-size:0.86rem; color:var(--royal-dark);}
+@media(max-width:768px){
+  #pieChart{ height:200px !important; }
+  #lineChart{ height:150px !important; }
+}
 </style>
 </head>
 <body>
 <div class="container py-4">
 
+  <!-- لوحة المصروفات اليومية -->
   <div class="card card-custom">
-    <h4 class="mb-3">💰 لوحة الميزانية</h4>
-    <div id="expenseInputs" class="mb-3"></div>
+    <h4 class="mb-3">💰 المصروف اليومي</h4>
+    <div class="row mb-2">
+      <div class="col-md-4 col-12 mb-2">
+        <input type="date" id="expenseDate" class="form-control" value="">
+      </div>
+    </div>
+    <div id="expenseInputs" class="row mb-3"></div>
     <button id="addExpenseBtn" class="btn btn-royal mb-2">اضافة المصروفات</button>
     <button id="endMonthBtn" class="btn btn-warning mb-2">نهاية الشهر → تحويل الباقي للادخار</button>
-    <canvas id="pieChart" height="200" class="mb-3"></canvas>
+    <canvas id="pieChart" class="mb-3"></canvas>
   </div>
 
+  <!-- توقعات ونصائح الادخار -->
   <div class="card card-custom">
     <h4 class="mb-3">📊 توقعات الإنفاق ونصائح الادخار</h4>
     <div id="predictionCard"></div>
     <div id="savingTipsContainer" class="note mt-2"></div>
   </div>
 
-  <canvas id="lineChart" height="150" class="mt-4"></canvas>
+  <!-- شارت المصروفات اليومية -->
+  <canvas id="lineChart" class="mt-4"></canvas>
 
 </div>
 
 <script>
-// ===== Dummy Data =====
+// ===== بيانات وهمية =====
 const data={
   categories:{
     "ادخار":1000,
@@ -77,18 +93,25 @@ const data={
   dailyExpenses:[]
 };
 
-// ===== Render Expense Inputs =====
-const expenseInputs=document.getElementById('expenseInputs');
-for(const cat in data.categories){
-  const div=document.createElement('div');
-  div.className="mb-2";
-  div.innerHTML=`<label>${cat}</label>
-    <input type="number" class="form-control expense-input" placeholder="المصروف اليومي" data-cat="${cat}" data-limit="${data.categories[cat]}">`;
-  expenseInputs.appendChild(div);
-}
+// ===== تهيئة تاريخ اليوم =====
+document.getElementById('expenseDate').value=new Date().toISOString().split('T')[0];
 
-// ===== Event Listeners =====
+// ===== إدخال المصروفات =====
+const expenseInputs=document.getElementById('expenseInputs');
+function renderExpenseInputs(){
+  expenseInputs.innerHTML="";
+  for(const cat in data.categories){
+    const div=document.createElement('div');
+    div.className="col-md-3 col-6 mb-2";
+    div.innerHTML=`<label>${cat}</label>
+      <input type="number" class="form-control expense-input" placeholder="المصروف اليومي" data-cat="${cat}" data-limit="${data.categories[cat]}">`;
+    expenseInputs.appendChild(div);
+  }
+}
+renderExpenseInputs();
+
 document.getElementById('addExpenseBtn').onclick=()=>{
+  const date=document.getElementById('expenseDate').value;
   const newExpenses={}; let overLimitCats=[];
   Array.from(document.getElementsByClassName('expense-input')).forEach(inp=>{
     const cat=inp.dataset.cat;
@@ -99,7 +122,7 @@ document.getElementById('addExpenseBtn').onclick=()=>{
     if(val>limit){ inp.classList.add('border-danger'); overLimitCats.push(cat);}
   });
   if(overLimitCats.length>0) alert("⚠️ تجاوز الحد في الأقسام: "+overLimitCats.join(", "));
-  data.dailyExpenses.push({date:new Date().toISOString().split('T')[0],expenses:newExpenses});
+  data.dailyExpenses.push({date, expenses:newExpenses});
   renderChart(); renderPredictions(); renderSavingTips(); renderLineChart();
 };
 
@@ -113,7 +136,7 @@ document.getElementById('endMonthBtn').onclick=()=>{
   renderChart(); renderPredictions(); renderSavingTips(); renderLineChart();
 };
 
-// ===== Pie Chart =====
+// ===== شارت الدائرة =====
 function renderChart(){
   const ctx=document.getElementById('pieChart').getContext('2d');
   const colors=Object.keys(data.categories).map(cat=>{
@@ -125,10 +148,10 @@ function renderChart(){
   });
   const chartData={ labels:Object.keys(data.categories), datasets:[{ data:Object.values(data.categories), backgroundColor:colors }]};
   if(window.myChart) window.myChart.destroy();
-  window.myChart=new Chart(ctx,{type:'pie',data:chartData});
+  window.myChart=new Chart(ctx,{type:'pie',data:chartData, options:{responsive:true, maintainAspectRatio:false}});
 }
 
-// ===== Predictions Card =====
+// ===== توقعات الإنفاق =====
 function renderPredictions(){
   const container=document.getElementById('predictionCard');
   container.innerHTML="";
@@ -152,7 +175,6 @@ function renderPredictions(){
 
     item.innerHTML=`<span>${cat}: المتوقع لهذا الشهر ${predicted.toFixed(2)} ريال ${arrow}</span>`;
 
-    // تفاصيل يومية
     const dailyDiv=document.createElement('div');
     dailyDiv.className="daily-details";
     const dailyRecords=data.dailyExpenses.map(d=>`${d.date}: ${d.expenses[cat]||0} ريال`).join("<br>");
@@ -165,7 +187,7 @@ function renderPredictions(){
   }
 }
 
-// ===== Saving Tips =====
+// ===== نصائح الادخار =====
 function renderSavingTips(){
   const container=document.getElementById('savingTipsContainer'); let tips=[];
   for(const cat in data.categories){
@@ -177,7 +199,7 @@ function renderSavingTips(){
   container.innerHTML=tips.length?tips.join("<br>"):"لا توجد نصائح حالياً، استمري على هذا الأداء 👍";
 }
 
-// ===== Line Chart =====
+// ===== شارت الخط =====
 function renderLineChart(){
   const ctx=document.getElementById('lineChart').getContext('2d');
   const labels=data.dailyExpenses.map(d=>d.date);
@@ -186,7 +208,7 @@ function renderLineChart(){
     return { label:cat, data:values, borderColor:'#'+Math.floor(Math.random()*16777215).toString(16), tension:0.2, fill:false};
   });
   if(window.myLineChart) window.myLineChart.destroy();
-  window.myLineChart=new Chart(ctx,{type:'line',data:{labels, datasets}});
+  window.myLineChart=new Chart(ctx,{type:'line',data:{labels, datasets}, options:{responsive:true, maintainAspectRatio:false}});
 }
 
 // ===== Initial Render =====
