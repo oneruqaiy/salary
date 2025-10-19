@@ -14,33 +14,56 @@
 
 <style>
 :root{
-  --royal-purple:#4b0082;
-  --royal-gold:#d6b86a;
-  --royal-silver:#c0c0c0;
-  --light-purple:#a76bcf;
-  --card-shadow:0 6px 18px rgba(75,0,130,0.2);
-  --accent-text:#2c003e;
+  --royal-blue:#3b0a6b;
+  --light-blue:#5a2fa5;
+  --accent-gold:#d6b86a;
+  --card-shadow:0 6px 18px rgba(0,0,50,0.2);
+  --text-dark:#2c003e;
 }
 body{
-  background: linear-gradient(180deg,#f2e9ff 0%,#ffffff 100%);
-  color: var(--accent-text);
+  background: linear-gradient(180deg,#e3eaff 0%,#ffffff 100%);
+  color: var(--text-dark);
   font-family:"Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   padding-bottom:40px;
 }
 .card-royal{
-  background: linear-gradient(180deg, rgba(75,0,130,0.05), rgba(167,107,207,0.05));
+  background: linear-gradient(180deg, rgba(59,10,107,0.05), rgba(90,47,165,0.05));
   border:none;
   box-shadow: var(--card-shadow);
   border-radius:16px;
+  padding:20px;
+  margin-bottom:20px;
 }
 .category-name{ font-weight:700; font-size:0.95rem;}
-.btn-gold{ background: var(--royal-gold); color:#3b2d1d; border:none;}
-.btn-royal{ background: var(--royal-purple); color: var(--royal-gold); border:none;}
-.btn-royal:hover{ background: var(--light-purple);}
-.form-control:focus{ box-shadow:none; border-color: var(--royal-purple);}
+.btn-gold{ background: var(--accent-gold); color:#3b2d1d; border:none;}
+.btn-royal{ background: var(--royal-blue); color: var(--accent-gold); border:none;}
+.btn-royal:hover{ background: var(--light-blue);}
+.form-control:focus{ box-shadow:none; border-color: var(--royal-blue);}
 .expense-input.over-limit{ border-color:red; background-color:#ffe6e6;}
 footer{ margin-top:30px;color:#7a5a67;font-size:0.9rem;}
-.note{ font-size:0.86rem; color:#8a5a6d;}
+.note{ font-size:0.86rem; color:#5a2fa5;}
+.prediction-card{
+  border-radius:12px;
+  padding:15px;
+  box-shadow:0 4px 12px rgba(0,0,50,0.1);
+  margin-bottom:15px;
+  background-color:#f8f9ff;
+}
+.prediction-item{ 
+  display:flex; 
+  justify-content:space-between; 
+  align-items:center; 
+  margin-bottom:6px; 
+  padding:6px 10px; 
+  border-radius:8px;
+  cursor:pointer;
+  transition: background 0.2s;
+}
+.prediction-item:hover{ background-color:#e0e0ff;}
+.status-green{ background-color:#d4edda; color:#155724;}
+.status-yellow{ background-color:#fff3cd; color:#856404;}
+.status-red{ background-color:#f8d7da; color:#721c24;}
+.daily-details{ font-size:0.85rem; color:#3b0a6b; margin-top:4px; display:none;}
 </style>
 </head>
 <body>
@@ -53,6 +76,13 @@ footer{ margin-top:30px;color:#7a5a67;font-size:0.9rem;}
   <div id="app" style="display:none;">
     <div id="budgetContainer"></div>
     <canvas id="lineChart" height="150"></canvas>
+
+    <!-- Predictions & Saving Tips Card -->
+    <div class="card-royal">
+      <h5 class="mb-3">📊 توقعات الإنفاق ونصائح الادخار</h5>
+      <div id="predictionCard" class="prediction-card"></div>
+      <div id="savingTipsContainer" class="note"></div>
+    </div>
   </div>
 
   <footer class="text-center mt-4">
@@ -71,14 +101,6 @@ const authContainer=document.getElementById('authContainer');
 const app=document.getElementById('app');
 const budgetContainer=document.getElementById('budgetContainer');
 
-let tempEmail="", tempPassword="";
-
-// ===== Login / Signup =====
-function showLogin(){ /* مماثل للكود السابق */ }
-function login(){ /* مماثل */ }
-function signupStep1(){ /* مماثل */ }
-function googleLogin(){ /* مماثل */ }
-
 auth.onAuthStateChanged(user=>{
   if(user){ authContainer.style.display='none'; app.style.display='block'; loadUserData(user.uid); }
   else{ authContainer.style.display='block'; app.style.display='none'; showLogin(); }
@@ -90,16 +112,14 @@ async function loadUserData(uid){
   renderBudget(docSnap.data(), uid);
 }
 
-// ===== Render Budget with Advanced Features =====
+// ===== Render Budget =====
 function renderBudget(data, uid){
   budgetContainer.innerHTML=`
   <div class="card p-3 card-royal">
     <h5 class="mb-3">لوحة الميزانية</h5>
     <div id="expenseInputs"></div>
-    <button id="addExpenseBtn" class="btn btn-outline-primary mb-2">اضافة المصروفات</button>
+    <button id="addExpenseBtn" class="btn btn-royal mb-2">اضافة المصروفات</button>
     <button id="endMonthBtn" class="btn btn-gold mb-2">نهاية الشهر → تحويل الباقي للادخار</button>
-    <div id="predictionsContainer" class="mb-2"></div>
-    <div id="savingTipsContainer" class="mb-2 note"></div>
     <canvas id="pieChart" height="200"></canvas>
   </div>
   `;
@@ -142,47 +162,72 @@ function renderBudget(data, uid){
   renderChart(data); renderPredictions(data); renderSavingTips(data); renderLineChart(data);
 }
 
-// ===== Pie Chart with Color Indicators =====
+// ===== Pie Chart =====
 function renderChart(data){
   const ctx=document.getElementById('pieChart').getContext('2d');
   const colors=Object.keys(data.categories).map(cat=>{
     const spent=data.dailyExpenses.reduce((sum,d)=>sum+(d.expenses[cat]||0),0);
     const limit=data.categories[cat]; const ratio=spent/limit;
-    if(ratio<0.8) return "#4caf50"; // أخضر
-    else if(ratio<=1) return "#ffeb3b"; // أصفر
-    else return "#f44336"; // أحمر
+    if(ratio<0.8) return "#4caf50";
+    else if(ratio<=1) return "#ffeb3b";
+    else return "#f44336";
   });
   const chartData={ labels:Object.keys(data.categories), datasets:[{ data:Object.values(data.categories), backgroundColor:colors }]};
   if(window.myChart) window.myChart.destroy();
   window.myChart=new Chart(ctx,{type:'pie',data:chartData});
 }
 
-// ===== Predictions =====
+// ===== Predictions Card with Dynamic Colors + Arrows + Expandable Details =====
 function renderPredictions(data){
-  const container=document.getElementById('predictionsContainer');
-  container.innerHTML="<b>توقعات الإنفاق لبقية الشهر:</b><br>";
-  const today=new Date().getDate(); const daysInMonth=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();
+  const container=document.getElementById('predictionCard');
+  container.innerHTML="";
+  const today=new Date().getDate(); 
+  const daysInMonth=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();
+
   for(const cat in data.categories){
     const spent=data.dailyExpenses.reduce((sum,d)=>sum+(d.expenses[cat]||0),0);
-    const remaining=data.categories[cat]-spent;
-    const dailyPrediction=remaining/(daysInMonth-today);
-    container.innerHTML+=`${cat}: ${dailyPrediction.toFixed(2)} ريال يومياً متوقع<br>`;
+    const predicted= (data.categories[cat]-spent)/(daysInMonth-today || 1);
+
+    const avgSpent = data.dailyExpenses.length ? spent/data.dailyExpenses.length : 0;
+    let arrow="";
+    if(predicted > avgSpent) arrow=" ↑"; 
+    else if(predicted < avgSpent) arrow=" ↓";
+
+    const item=document.createElement('div');
+    item.className="prediction-item";
+
+    if(predicted < 0) item.classList.add('status-red');
+    else if(predicted/ data.categories[cat] <=0.2) item.classList.add('status-yellow');
+    else item.classList.add('status-green');
+
+    item.innerHTML=`<span>${cat}: المتوقع لهذا الشهر ${predicted.toFixed(2)} ريال ${arrow}</span>`;
+
+    // تفاصيل يومية قابلة للعرض
+    const dailyDiv=document.createElement('div');
+    dailyDiv.className="daily-details";
+    const dailyRecords=data.dailyExpenses.map(d=>`${d.date}: ${d.expenses[cat]||0} ريال`).join("<br>");
+    dailyDiv.innerHTML=dailyRecords;
+    item.appendChild(dailyDiv);
+
+    item.onclick=()=>{ dailyDiv.style.display = dailyDiv.style.display==="none"?"block":"none"; }
+
+    container.appendChild(item);
   }
 }
 
-// ===== Saving Tips / AI Suggestions =====
+// ===== Saving Tips =====
 function renderSavingTips(data){
   const container=document.getElementById('savingTipsContainer'); let tips=[];
   for(const cat in data.categories){
     const spent=data.dailyExpenses.reduce((sum,d)=>sum+(d.expenses[cat]||0),0);
     const limit=data.categories[cat];
-    if(spent>limit) tips.push(`قللي الإنفاق في ${cat} لتوفير أكثر`);
-    else if(spent<limit*0.5) tips.push(`يمكنك استثمار الفائض من ${cat} في الادخار`);
+    if(spent>limit) tips.push(`⚠️ قللي الإنفاق في ${cat} لتوفير أكثر`);
+    else if(spent<limit*0.5) tips.push(`💡 يمكنك استثمار الفائض من ${cat} في الادخار`);
   }
   container.innerHTML=tips.length?tips.join("<br>"):"لا توجد نصائح حالياً، استمري على هذا الأداء 👍";
 }
 
-// ===== Line Chart for Daily Expenses =====
+// ===== Line Chart =====
 function renderLineChart(data){
   const ctx=document.getElementById('lineChart').getContext('2d');
   const labels=data.dailyExpenses.map(d=>d.date);
