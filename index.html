@@ -234,6 +234,10 @@ function renderBudget(data, uid){
       <button id="endMonthBtn" class="btn btn-gold mb-2">نهاية الشهر → تحويل الباقي للادخار</button>
       <button id="resetBtn" class="btn btn-outline-danger mb-2">إعادة ضبط الحساب</button>
     </div>
+
+    <div id="predictionsContainer" class="mb-3"></div>
+    <div id="savingTipsContainer" class="mb-3 note"></div>
+
     <canvas id="pieChart" height="200"></canvas>
   </div>
   `;
@@ -258,7 +262,6 @@ function renderBudget(data, uid){
       const limit = parseFloat(inp.dataset.limit);
       const val = parseFloat(inp.value)||0;
       newExpenses[cat] = val;
-      // ===== تنبيه إذا تجاوز الحد =====
       if(val > limit){
         inp.classList.add('over-limit');
         overLimitCats.push(cat);
@@ -272,8 +275,9 @@ function renderBudget(data, uid){
 
     data.dailyExpenses.push({date, expenses:newExpenses});
     await db.collection('users').doc(uid).update({dailyExpenses:data.dailyExpenses});
-    alert("تم حفظ المصروفات");
     renderChart(data);
+    renderPredictions(data);
+    renderSavingTips(data);
   };
 
   document.getElementById('endMonthBtn').onclick = async ()=>{
@@ -285,6 +289,8 @@ function renderBudget(data, uid){
     data.categories["ادخار"] = (data.categories["ادخار"]||0) + remaining;
     await db.collection('users').doc(uid).update({categories:data.categories});
     renderChart(data);
+    renderPredictions(data);
+    renderSavingTips(data);
   };
 
   document.getElementById('resetBtn').onclick = async ()=>{
@@ -295,6 +301,8 @@ function renderBudget(data, uid){
   };
 
   renderChart(data);
+  renderPredictions(data);
+  renderSavingTips(data);
 }
 
 // ===== Chart =====
@@ -309,6 +317,44 @@ function renderChart(data){
   };
   if(window.myChart) window.myChart.destroy();
   window.myChart = new Chart(ctx,{type:'pie',data:chartData});
+}
+
+// ===== توقعات الإنفاق =====
+function renderPredictions(data){
+  const container = document.getElementById('predictionsContainer');
+  container.innerHTML = `<h6>📊 توقعات الإنفاق لبقية الشهر</h6>`;
+  const today = new Date();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1,0).getDate();
+  const spentDays = new Set(data.dailyExpenses.map(d=>d.date));
+  const remainingDays = daysInMonth - spentDays.size || 1;
+
+  for(const cat in data.categories){
+    const totalSpent = data.dailyExpenses.reduce((sum, day)=>{
+      return sum + (day.expenses[cat] || 0);
+    },0);
+    const avgDaily = totalSpent / (spentDays.size||1);
+    const predicted = avgDaily * remainingDays + totalSpent;
+    const over = predicted > data.categories[cat] ? "⚠️ تجاوز محتمل" : "✅ ضمن الحد";
+    container.innerHTML += `<div>${cat}: المتوقع لهذا الشهر ${predicted.toFixed(2)} ريال — ${over}</div>`;
+  }
+}
+
+// ===== نصائح ادخار ذكية =====
+function renderSavingTips(data){
+  const container = document.getElementById('savingTipsContainer');
+  container.innerHTML = `<h6>💡 نصائح ادخار ذكية</h6>`;
+  let tips = [];
+  for(const cat in data.categories){
+    const totalSpent = data.dailyExpenses.reduce((sum, day)=>{
+      return sum + (day.expenses[cat] || 0);
+    },0);
+    if(totalSpent > data.categories[cat]*0.8){
+      tips.push(`قللي الإنفاق في ${cat} لتوفير أكثر`);
+    } else if(totalSpent < data.categories[cat]*0.5){
+      tips.push(`يمكنك استثمار الفائض من ${cat} في الادخار`);
+    }
+  }
+  container.innerHTML += tips.length ? tips.join("<br>") : "لا توجد نصائح حالياً، استمري على هذا الأداء 👍";
 }
 </script>
 </body>
