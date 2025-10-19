@@ -97,7 +97,7 @@
     const email=document.getElementById('email').value;
     const password=document.getElementById('password').value;
     auth.createUserWithEmailAndPassword(email,password).then(cred=>{
-      db.collection('users').doc(cred.user.uid).set({categories:{},dailyExpenses:[],salary:0,incomeSources:0,loans:0});
+      db.collection('users').doc(cred.user.uid).set({categories:{},dailyExpenses:[],salary:0,incomeSources:0,loans:0},{merge:true});
     }).catch(err=>alert(err.message));
   }
 
@@ -121,24 +121,19 @@
   // ===== Load User Data =====
   async function loadUserData(uid){
     const docSnap = await db.collection('users').doc(uid).get();
-
     if(!docSnap.exists){
       budgetContainer.innerHTML="<div class='text-center'>خطأ: البيانات غير موجودة</div>";
       return;
     }
-
     const data=docSnap.data();
-
-    // إذا لم يدخل بياناته الأولية
-    if(!data.salary || !data.incomeSources || !data.loans || !data.categories || Object.keys(data.categories).length===0){
+    if(!data.salary || !data.categories || Object.keys(data.categories).length===0){
       renderInitialSetup(uid, data);
       return;
     }
-
     renderBudget(data, uid);
   }
 
-  // ===== Initial Setup (Salary / Income / Loans / Categories) =====
+  // ===== Initial Setup =====
   function renderInitialSetup(uid, data){
     setupContainer.innerHTML=`
       <div class="card card-royal p-3 mx-auto" style="max-width:500px;">
@@ -188,15 +183,17 @@
         return;
       }
 
-      await db.collection('users').doc(uid).update({
+      await db.collection('users').doc(uid).set({
         salary:salary,
         incomeSources:income,
         loans:loans,
         categories:categoriesObj,
         dailyExpenses:[]
-      });
+      },{merge:true});
 
-      loadUserData(uid);
+      // تحميل البيانات مباشرة بعد الحفظ
+      const updatedDoc=await db.collection('users').doc(uid).get();
+      renderBudget(updatedDoc.data(), uid);
     };
   }
 
