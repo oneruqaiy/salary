@@ -4,66 +4,55 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>راتبي الذكي — Advanced Budget Planner</title>
-
-  <!-- Bootstrap 5 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
   <style>
     :root{
-      --royal-blue:#1a237e;
+      --royal-blue:#3b3bff;
       --royal-gold:#d6b86a;
-      --light-blue:#536dfe;
-      --card-shadow:0 6px 18px rgba(26,35,126,0.2);
-      --accent-text:#0d0d3a;
+      --card-shadow:0 6px 18px rgba(0,0,128,0.2);
+      --accent-text:#2c003e;
     }
     body{
-      background: linear-gradient(180deg,#e8eaf6 0%,#ffffff 100%);
+      background: linear-gradient(180deg,#f2f2ff 0%,#ffffff 100%);
       color: var(--accent-text);
       font-family:"Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       padding-bottom:40px;
     }
     .card-royal{
-      background: linear-gradient(180deg, rgba(26,35,126,0.05), rgba(83,109,254,0.05));
+      background: linear-gradient(180deg, rgba(59,59,255,0.05), rgba(59,59,255,0.1));
       border:none;
       box-shadow: var(--card-shadow);
       border-radius:16px;
     }
-    .category-name{ font-weight:700; font-size:0.95rem; }
-    .btn-gold{ background: var(--royal-gold); color:#3b2d1d; border:none; }
-    .btn-royal{ background: var(--royal-blue); color: var(--royal-gold); border:none; }
-    .btn-royal:hover{ background: var(--light-blue); }
-    .form-control:focus{ box-shadow:none; border-color: var(--royal-blue); }
-    .expense-input.over-limit{ border-color:red; background-color:#ffe6e6; }
-    footer{ margin-top:30px;color:#7a5a67;font-size:0.9rem; }
-    .note{ font-size:0.86rem; color:#8a5a6d; }
-    canvas{ max-width:100%; height:200px; }
+    .category-name{ font-weight:700; font-size:0.95rem;}
+    .btn-gold{ background: var(--royal-gold); color:#3b2d1d; border:none;}
+    .btn-royal{ background: var(--royal-blue); color: var(--royal-gold); border:none;}
+    .btn-royal:hover{ background: #4b4bff;}
+    .form-control:focus{ box-shadow:none; border-color: var(--royal-blue);}
+    .expense-input.over-limit{ border-color:red; background-color:#ffe6e6;}
+    footer{ margin-top:30px;color:#7a5a67;font-size:0.9rem;}
+    .note{ font-size:0.86rem; color:#8a5a6d;}
   </style>
 </head>
 <body>
 <div class="container py-4">
-
-  <!-- Header / Login -->
   <header class="mb-3">
     <h3 class="text-center mb-3">👑 راتبي الذكي</h3>
     <div id="authContainer" class="text-center"></div>
   </header>
 
-  <!-- App -->
   <div id="app" style="display:none;">
-    <!-- Budget Container -->
     <div id="budgetContainer"></div>
+    <canvas id="lineChart" height="150"></canvas>
   </div>
 
   <footer class="text-center mt-4">
     مصمم لكِ — راتبي الذكي • بياناتك محفوظة سحابيًا لكل مستخدم
   </footer>
-
 </div>
 
 <script>
@@ -86,34 +75,34 @@
   const app=document.getElementById('app');
   const budgetContainer=document.getElementById('budgetContainer');
 
-  let tempEmail="", tempPassword="";
-
   // ===== Login / Signup =====
   function showLogin(){
     authContainer.innerHTML=`
-      <div class="card card-royal p-3 mx-auto" style="max-width:400px;">
-        <h5>تسجيل الدخول</h5>
-        <input id="emailInput" type="email" class="form-control mb-2" placeholder="البريد الإلكتروني">
-        <input id="passwordInput" type="password" class="form-control mb-2" placeholder="كلمة المرور">
-        <button class="btn btn-royal w-100 mb-2" onclick="login()">تسجيل الدخول</button>
-        <button class="btn btn-outline-primary w-100" onclick="signupStep1()">إنشاء حساب جديد</button>
-      </div>`;
+      <input type="email" id="email" class="form-control mb-2" placeholder="البريد الإلكتروني">
+      <input type="password" id="password" class="form-control mb-2" placeholder="كلمة المرور">
+      <button class="btn btn-royal w-100 mb-2" onclick="login()">تسجيل الدخول</button>
+      <button class="btn btn-gold w-100 mb-2" onclick="signupStep1()">إنشاء حساب</button>
+      <button class="btn btn-outline-primary w-100" onclick="googleLogin()">تسجيل بـ Google</button>
+    `;
   }
 
   function login(){
-    const email=document.getElementById('emailInput').value;
-    const password=document.getElementById('passwordInput').value;
-    auth.signInWithEmailAndPassword(email,password).catch(e=>alert(e.message));
+    const email=document.getElementById('email').value;
+    const password=document.getElementById('password').value;
+    auth.signInWithEmailAndPassword(email,password).catch(err=>alert(err.message));
   }
 
   function signupStep1(){
-    const email=document.getElementById('emailInput').value;
-    const password=document.getElementById('passwordInput').value;
-    auth.createUserWithEmailAndPassword(email,password)
-      .then(res=>db.collection('users').doc(res.user.uid).set({
-        categories:{}, dailyExpenses:[]
-      }))
-      .catch(e=>alert(e.message));
+    const email=document.getElementById('email').value;
+    const password=document.getElementById('password').value;
+    auth.createUserWithEmailAndPassword(email,password).then(cred=>{
+      db.collection('users').doc(cred.user.uid).set({categories:{},dailyExpenses:[]});
+    }).catch(err=>alert(err.message));
+  }
+
+  function googleLogin(){
+    const provider=new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider);
   }
 
   auth.onAuthStateChanged(user=>{
@@ -128,18 +117,76 @@
     }
   });
 
-  // ===== Load Data =====
+  // ===== Load User Data =====
   async function loadUserData(uid){
-    const docSnap=await db.collection('users').doc(uid).get();
+    const docSnap = await db.collection('users').doc(uid).get();
+
     if(!docSnap.exists){
       budgetContainer.innerHTML="<div class='text-center'>خطأ: البيانات غير موجودة</div>";
       return;
     }
-    renderBudget(docSnap.data(),uid);
+
+    // إذا لم يكن لديه أقسام نطلب منه إدخال الأقسام والمبالغ
+    if(!docSnap.data().categories || Object.keys(docSnap.data().categories).length===0){
+      authContainer.style.display='none';
+      app.style.display='block';
+
+      budgetContainer.innerHTML=`
+        <div class="card card-royal p-3 mx-auto" style="max-width:500px;">
+          <h5>أدخل الأقسام والمبالغ لكل قسم</h5>
+          <div id="userCategoriesContainer"></div>
+          <button id="addCategoryBtn" class="btn btn-outline-primary mb-2 w-100">إضافة قسم</button>
+          <button id="saveCategoriesBtn" class="btn btn-royal mt-2 w-100">حفظ الأقسام</button>
+        </div>
+      `;
+
+      const container=document.getElementById('userCategoriesContainer');
+
+      function addCategoryRow(name="",alloc=""){
+        const div=document.createElement('div');
+        div.className="d-flex gap-2 mb-2";
+        div.innerHTML=`
+          <input type="text" class="form-control category-name-input" placeholder="اسم القسم" value="${name}">
+          <input type="number" class="form-control category-alloc-input" placeholder="المبلغ" value="${alloc}">
+        `;
+        container.appendChild(div);
+      }
+
+      // بداية بـ 3 أسطر
+      for(let i=0;i<3;i++) addCategoryRow();
+
+      document.getElementById('addCategoryBtn').onclick=()=> addCategoryRow();
+
+      // حفظ الأقسام
+      document.getElementById('saveCategoriesBtn').onclick=async ()=>{
+        const nameInputs=document.getElementsByClassName('category-name-input');
+        const allocInputs=document.getElementsByClassName('category-alloc-input');
+        let categoriesObj={};
+        for(let i=0;i<nameInputs.length;i++){
+          const name=nameInputs[i].value.trim();
+          const alloc=parseFloat(allocInputs[i].value)||0;
+          if(name) categoriesObj[name]=alloc;
+        }
+        if(Object.keys(categoriesObj).length===0){
+          alert("الرجاء إدخال قسم واحد على الأقل");
+          return;
+        }
+        await db.collection('users').doc(uid).update({
+          categories:categoriesObj,
+          dailyExpenses:[]
+        });
+        loadUserData(uid);
+      };
+
+      return;
+    }
+
+    // إذا الأقسام موجودة بالفعل
+    renderBudget(docSnap.data(), uid);
   }
 
   // ===== Render Budget =====
-  function renderBudget(data,uid){
+  function renderBudget(data, uid){
     budgetContainer.innerHTML=`
       <div class="card p-3 card-royal">
         <h5 class="mb-3">لوحة الميزانية</h5>
@@ -148,23 +195,21 @@
         <button id="endMonthBtn" class="btn btn-gold mb-2">نهاية الشهر → تحويل الباقي للادخار</button>
         <div id="predictionsContainer" class="mb-2"></div>
         <div id="savingTipsContainer" class="mb-2 note"></div>
-        <canvas id="pieChart"></canvas>
-        <canvas id="lineChart"></canvas>
+        <canvas id="pieChart" height="200"></canvas>
       </div>
     `;
 
-    // ==== Categories from system / user-defined ====
     const expenseInputs=document.getElementById('expenseInputs');
-    const categories=Object.keys(data.categories);
-    categories.forEach(cat=>{
+    for(const cat in data.categories){
       const div=document.createElement('div');
       div.className="d-flex gap-2 mb-2";
-      div.innerHTML=`<span class="category-name w-50">${cat}</span>
-        <input type="number" class="form-control w-50 expense-input" placeholder="المصروف اليومي" data-cat="${cat}" data-limit="${data.categories[cat]}">`;
+      div.innerHTML=`
+        <span class="category-name w-50">${cat}</span>
+        <input type="number" class="form-control w-50 expense-input" placeholder="المصروف اليومي" data-cat="${cat}" data-limit="${data.categories[cat]}">
+      `;
       expenseInputs.appendChild(div);
-    });
+    }
 
-    // ==== Add Expenses ====
     document.getElementById('addExpenseBtn').onclick=async ()=>{
       const newExpenses={};
       let overLimitCats=[];
@@ -185,7 +230,6 @@
       renderLineChart(data);
     };
 
-    // ==== End Month ====
     document.getElementById('endMonthBtn').onclick=async ()=>{
       let totalSpent=0;
       for(const day of data.dailyExpenses) for(const cat in day.expenses) totalSpent+=day.expenses[cat];
@@ -219,7 +263,7 @@
     });
     const chartData={
       labels:Object.keys(data.categories),
-      datasets:[{ data:Object.values(data.categories), backgroundColor:colors }]
+      datasets:[{data:Object.values(data.categories), backgroundColor:colors}]
     };
     if(window.myChart) window.myChart.destroy();
     window.myChart=new Chart(ctx,{type:'pie',data:chartData});
@@ -258,7 +302,7 @@
     const labels=data.dailyExpenses.map(d=>d.date);
     const datasets=Object.keys(data.categories).map(cat=>{
       const values=data.dailyExpenses.map(d=>d.expenses[cat]||0);
-      return { label:cat, data:values, borderColor:'#'+Math.floor(Math.random()*16777215).toString(16), tension:0.2, fill:false };
+      return {label:cat, data:values, borderColor:'#'+Math.floor(Math.random()*16777215).toString(16), tension:0.2, fill:false};
     });
     if(window.myLineChart) window.myLineChart.destroy();
     window.myLineChart=new Chart(ctx,{type:'line',data:{labels,datasets}});
