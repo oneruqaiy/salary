@@ -3,327 +3,538 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>راتبي الذكي — Advanced Budget Planner</title>
+  <title>راتبي الذكي — Budget Planner</title>
+
+  <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Firebase (compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
   <style>
     :root{
-      --royal-blue:#3b3bff;
-      --royal-gold:#d6b86a;
-      --card-shadow:0 6px 18px rgba(0,0,128,0.2);
-      --accent-text:#2c003e;
+      --bg:#f5f6fa;           /* خلفية الصفحة */
+      --card-bg:#ffffff;      /* خلفية الكارد */
+      --title-blue:#1e3a8a;   /* عناوين */
+      --btn-blue:#2563eb;     /* أزرار */
+      --muted:#6b7280;        /* نص ثانوي */
+      --border:#e6edf8;       /* حدود ناعمة */
+      --shadow: 0 6px 18px rgba(30,58,138,0.06);
     }
     body{
-      background: linear-gradient(180deg,#f2f2ff 0%,#ffffff 100%);
-      color: var(--accent-text);
-      font-family:"Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background:var(--bg);
+      color:#1f2937;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       padding-bottom:40px;
     }
-    .card-royal{
-      background: linear-gradient(180deg, rgba(59,59,255,0.05), rgba(59,59,255,0.1));
-      border:none;
-      box-shadow: var(--card-shadow);
-      border-radius:16px;
+    h3,h5 { color:var(--title-blue); }
+    .card-soft{
+      background:var(--card-bg);
+      border:1px solid var(--border);
+      border-radius:12px;
+      box-shadow:var(--shadow);
     }
-    .category-name{ font-weight:700; font-size:0.95rem;}
-    .btn-gold{ background: var(--royal-gold); color:#3b2d1d; border:none;}
-    .btn-royal{ background: var(--royal-blue); color: var(--royal-gold); border:none;}
-    .btn-royal:hover{ background: #4b4bff;}
-    .form-control:focus{ box-shadow:none; border-color: var(--royal-blue);}
-    .expense-input.over-limit{ border-color:red; background-color:#ffe6e6;}
-    footer{ margin-top:30px;color:#7a5a67;font-size:0.9rem;}
-    .note{ font-size:0.86rem; color:#8a5a6d;}
+    .btn-primary{
+      background:var(--btn-blue);
+      border:none;
+    }
+    .btn-primary:hover{ background:#1e40af; }
+    .btn-outline-primary{
+      color:var(--btn-blue);
+      border-color:var(--btn-blue);
+    }
+    .btn-outline-primary:hover{
+      background:var(--btn-blue); color:#fff;
+    }
+    .form-control:focus{
+      border-color:var(--btn-blue);
+      box-shadow:0 0 0 0.15rem rgba(37,99,235,0.12);
+    }
+    .category-name{ font-weight:700; font-size:0.95rem; }
+    .note{ color:var(--muted); font-size:0.9rem; }
+    .small-muted{ color:var(--muted); font-size:0.86rem; }
+    canvas{ background:#fff; border-radius:10px; padding:6px; box-shadow:var(--shadow); }
+    .expense-input.over-limit{ border-color:#ff4d4f; background:#fff1f0; }
+    @media (max-width:767px){
+      .category-name{ font-size:0.88rem; }
+      canvas{ height:160px !important; }
+    }
   </style>
 </head>
 <body>
 <div class="container py-4">
-  <header class="mb-3">
-    <h3 class="text-center mb-3">👑 راتبي الذكي</h3>
-    <div id="authContainer" class="text-center"></div>
+  <header class="mb-4 text-center">
+    <h3 class="fw-bold mb-2">👑 راتبي الذكي</h3>
+    <div id="authContainer" class="d-flex justify-content-center"></div>
   </header>
 
-  <div id="app" style="display:none;">
-    <div id="setupContainer"></div>
-    <div id="budgetContainer"></div>
-    <canvas id="lineChart" height="150"></canvas>
-  </div>
+  <main id="app" style="display:none;">
+    <div id="setupContainer" class="mb-3"></div>
+    <div id="budgetContainer" class="mb-3"></div>
 
-  <footer class="text-center mt-4">
+    <!-- small line chart under budget -->
+    <div class="mb-4">
+      <canvas id="lineChart" height="120"></canvas>
+    </div>
+  </main>
+
+  <footer class="text-center mt-4 note">
     مصمم لكِ — راتبي الذكي • بياناتك محفوظة سحابيًا لكل مستخدم
   </footer>
 </div>
 
 <script>
-  // ===== Firebase config =====
-  const firebaseConfig = {
-    apiKey:"AIzaSyB-1kkLnKv51PmEmwOIk3gqsigTJOU3Cgw",
-    authDomain:"budget-salary.firebaseapp.com",
-    projectId:"budget-salary",
-    storageBucket:"budget-salary.firebasestorage.app",
-    messagingSenderId:"833349662009",
-    appId:"1:833349662009:web:2fb64df1fe71a801a0a4e8",
-    measurementId:"G-0LS4TCBJYZ"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const auth=firebase.auth();
-  const db=firebase.firestore();
+/* ================== Firebase config ================== */
+const firebaseConfig = {
+  apiKey:"AIzaSyB-1kkLnKv51PmEmwOIk3gqsigTJOU3Cgw",
+  authDomain:"budget-salary.firebaseapp.com",
+  projectId:"budget-salary",
+  storageBucket:"budget-salary.firebasestorage.app",
+  messagingSenderId:"833349662009",
+  appId:"1:833349662009:web:2fb64df1fe71a801a0a4e8",
+  measurementId:"G-0LS4TCBJYZ"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
 
-  const authContainer=document.getElementById('authContainer');
-  const app=document.getElementById('app');
-  const setupContainer=document.getElementById('setupContainer');
-  const budgetContainer=document.getElementById('budgetContainer');
+/* ================== DOM refs ================== */
+const authContainer = document.getElementById('authContainer');
+const app = document.getElementById('app');
+const setupContainer = document.getElementById('setupContainer');
+const budgetContainer = document.getElementById('budgetContainer');
 
-  // ===== Login / Signup =====
-  function showLogin(){
-    authContainer.innerHTML=`
-      <input type="email" id="email" class="form-control mb-2" placeholder="البريد الإلكتروني">
-      <input type="password" id="password" class="form-control mb-2" placeholder="كلمة المرور">
-      <button class="btn btn-royal w-100 mb-2" onclick="login()">تسجيل الدخول</button>
-      <button class="btn btn-gold w-100 mb-2" onclick="signupStep1()">إنشاء حساب</button>
-      <button class="btn btn-outline-primary w-100" onclick="googleLogin()">تسجيل بـ Google</button>
+let windowPieChart = null;
+let windowLineChart = null;
+
+/* ================== Auth UI (keeps same logic) ================== */
+function showLogin(){
+  authContainer.innerHTML = `
+    <div class="card card-soft p-3" style="max-width:420px; width:100%;">
+      <div class="mb-2">
+        <input id="emailInput" type="email" class="form-control" placeholder="البريد الإلكتروني">
+      </div>
+      <div class="mb-3">
+        <input id="passwordInput" type="password" class="form-control" placeholder="كلمة المرور">
+      </div>
+      <div class="d-grid gap-2">
+        <button class="btn btn-primary" onclick="login()">تسجيل الدخول</button>
+        <button class="btn btn-outline-primary" onclick="signupStep1()">إنشاء حساب جديد</button>
+        <button class="btn btn-outline-dark" onclick="googleLogin()">تسجيل بـ Google</button>
+      </div>
+    </div>
+  `;
+}
+
+function login(){
+  const email = document.getElementById('emailInput').value.trim();
+  const password = document.getElementById('passwordInput').value;
+  if(!email || !password){ alert('الرجاء إدخال البريد وكلمة المرور'); return; }
+  auth.signInWithEmailAndPassword(email, password).catch(e => alert(e.message));
+}
+
+function signupStep1(){
+  const email = document.getElementById('emailInput').value.trim();
+  const password = document.getElementById('passwordInput').value;
+  if(!email || !password){ alert('الرجاء إدخال البريد وكلمة المرور'); return; }
+  auth.createUserWithEmailAndPassword(email,password)
+    .then(async cred=>{
+      // create safe initial doc (merge true so nothing lost)
+      await db.collection('users').doc(cred.user.uid).set({
+        salary:0,
+        incomeSources:0,
+        loans:0,
+        categories:{},
+        dailyExpenses:[]
+      }, { merge:true });
+      // user will be routed by onAuthStateChanged
+    })
+    .catch(e=>alert(e.message));
+}
+
+function googleLogin(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(e=>alert(e.message));
+}
+
+/* ================== Auth state change ================== */
+auth.onAuthStateChanged(user=>{
+  if(user){
+    authContainer.style.display = 'none';
+    app.style.display = 'block';
+    loadUserData(user.uid).catch(err=>{
+      console.error(err);
+      budgetContainer.innerHTML = "<div class='text-center text-danger'>حدث خطأ أثناء تحميل البيانات</div>";
+    });
+  } else {
+    authContainer.style.display = 'flex';
+    app.style.display = 'none';
+    showLogin();
+  }
+});
+
+/* ================== Load user data & decide initial setup ================== */
+async function loadUserData(uid){
+  const docRef = db.collection('users').doc(uid);
+  const doc = await docRef.get();
+  if(!doc.exists){
+    budgetContainer.innerHTML = "<div class='text-center'>خطأ: لم يتم العثور على بيانات المستخدم.</div>";
+    return;
+  }
+  const data = doc.data() || {};
+  // normalize
+  data.salary = data.salary || 0;
+  data.incomeSources = data.incomeSources || 0;
+  data.loans = data.loans || 0;
+  data.categories = data.categories || {};
+  data.dailyExpenses = Array.isArray(data.dailyExpenses) ? data.dailyExpenses : [];
+
+  // If salary or categories missing / empty -> show initial setup
+  const noCategories = !data.categories || Object.keys(data.categories).length === 0;
+  const noSalary = !data.salary || data.salary === 0;
+
+  if(noSalary || noCategories){
+    renderInitialSetup(uid, data);
+    return;
+  }
+
+  // else render budget view
+  renderBudget(data, uid);
+}
+
+/* ================== Initial Setup UI (Salary -> income -> loans -> categories) ================== */
+function renderInitialSetup(uid, data){
+  setupContainer.innerHTML = `
+    <div class="card card-soft p-4 mx-auto" style="max-width:620px;">
+      <h5 class="mb-3">الخطوة 1 — بياناتك الأساسية</h5>
+
+      <div class="row g-2">
+        <div class="col-md-4">
+          <label class="small-muted">الراتب الأساسي</label>
+          <input id="salaryInput" type="number" class="form-control" placeholder="مثال: 700" value="${data.salary||''}">
+        </div>
+        <div class="col-md-4">
+          <label class="small-muted">دخل إضافي (اختياري)</label>
+          <input id="incomeInput" type="number" class="form-control" placeholder="مثال: 200" value="${data.incomeSources||''}">
+        </div>
+        <div class="col-md-4">
+          <label class="small-muted">قروض/التزامات</label>
+          <input id="loansInput" type="number" class="form-control" placeholder="مثال: 100" value="${data.loans||''}">
+        </div>
+      </div>
+
+      <hr class="my-3">
+
+      <h5 class="mb-2">الخطوة 2 — الأقسام والمبالغ</h5>
+      <div id="userCategoriesContainer" class="mb-2"></div>
+
+      <div class="d-flex gap-2 mb-2">
+        <button id="addCategoryBtn" class="btn btn-outline-primary flex-grow-1">➕ إضافة قسم</button>
+        <button id="clearCategoriesBtn" class="btn btn-outline-secondary">🧹 مسح الكل</button>
+      </div>
+
+      <div class="d-grid">
+        <button id="saveSetupBtn" class="btn btn-primary">💾 حفظ والانتقال للوحة</button>
+      </div>
+      <div class="small-muted mt-2">يمكنك إضافة أي عدد من الأقسام، وبعد الحفظ ستُستخدم هذه الأقسام في حساب التوقعات والشارتات.</div>
+    </div>
+  `;
+
+  const container = document.getElementById('userCategoriesContainer');
+
+  function addCategoryRow(name = '', alloc = ''){
+    const row = document.createElement('div');
+    row.className = 'd-flex gap-2 mb-2';
+    row.innerHTML = `
+      <input type="text" class="form-control category-name-input" placeholder="اسم القسم (مثال: أكل)" value="${escapeHtml(name)}">
+      <input type="number" class="form-control category-alloc-input" placeholder="المبلغ" value="${alloc}">
+      <button class="btn btn-outline-danger btn-sm remove-row">✖</button>
     `;
+    // remove handler
+    row.querySelector('.remove-row').addEventListener('click', ()=> row.remove());
+    container.appendChild(row);
   }
 
-  function login(){
-    const email=document.getElementById('email').value;
-    const password=document.getElementById('password').value;
-    auth.signInWithEmailAndPassword(email,password).catch(err=>alert(err.message));
+  // helper to escape any inserted values (avoid broken attributes)
+  function escapeHtml(text){
+    if(!text) return '';
+    return text.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  function signupStep1(){
-    const email=document.getElementById('email').value;
-    const password=document.getElementById('password').value;
-    auth.createUserWithEmailAndPassword(email,password).then(cred=>{
-      db.collection('users').doc(cred.user.uid).set({categories:{},dailyExpenses:[],salary:0,incomeSources:0,loans:0},{merge:true});
-    }).catch(err=>alert(err.message));
+  // prefill with three rows or existing categories
+  const existing = data.categories && Object.keys(data.categories).length>0 ? Object.entries(data.categories) : [['ادخار','0'],['بترول','0'],['اكل','0']];
+  container.innerHTML = '';
+  for(const [k,v] of existing) addCategoryRow(k, v);
+
+  document.getElementById('addCategoryBtn').onclick = ()=> addCategoryRow();
+  document.getElementById('clearCategoriesBtn').onclick = ()=> { container.innerHTML=''; };
+
+  document.getElementById('saveSetupBtn').onclick = async ()=>{
+    const salary = parseFloat(document.getElementById('salaryInput').value) || 0;
+    const income = parseFloat(document.getElementById('incomeInput').value) || 0;
+    const loans = parseFloat(document.getElementById('loansInput').value) || 0;
+
+    // collect categories
+    const nameInputs = container.getElementsByClassName('category-name-input');
+    const allocInputs = container.getElementsByClassName('category-alloc-input');
+    const categoriesObj = {};
+    for(let i=0;i<nameInputs.length;i++){
+      const name = nameInputs[i].value.trim();
+      const alloc = parseFloat(allocInputs[i].value) || 0;
+      if(name) categoriesObj[name] = +alloc;
+    }
+    if(Object.keys(categoriesObj).length === 0){
+      alert('الرجاء إدخال قسم واحد على الأقل مع مبلغ مخصص.');
+      return;
+    }
+
+    try{
+      // use set with merge:true to avoid wiping other fields
+      await db.collection('users').doc(uid).set({
+        salary: +salary,
+        incomeSources: +income,
+        loans: +loans,
+        categories: categoriesObj,
+        dailyExpenses: []
+      }, { merge:true });
+
+      // fetch updated doc and render budget immediately
+      const updatedDoc = await db.collection('users').doc(uid).get();
+      const updatedData = updatedDoc.data();
+      // normalize arrays/objects
+      updatedData.salary = updatedData.salary || 0;
+      updatedData.incomeSources = updatedData.incomeSources || 0;
+      updatedData.loans = updatedData.loans || 0;
+      updatedData.categories = updatedData.categories || {};
+      updatedData.dailyExpenses = Array.isArray(updatedData.dailyExpenses) ? updatedData.dailyExpenses : [];
+      renderBudget(updatedData, uid);
+    } catch(err){
+      console.error(err);
+      alert('حصل خطأ عند حفظ البيانات. جربي مرة أخرى.');
+    }
+  };
+}
+
+/* ================== Budget View ================== */
+function renderBudget(data, uid){
+  // hide setup panel
+  setupContainer.innerHTML = '';
+
+  // top card with salary / income / loans and small controls
+  budgetContainer.innerHTML = `
+    <div class="card card-soft p-3">
+      <div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-start">
+        <div>
+          <h5 class="mb-1">لوحة الميزانية</h5>
+          <div class="small-muted">نظرة سريعة على دخلك والتزاماتك</div>
+        </div>
+        <div class="text-md-end">
+          <div class="small-muted">الراتب</div>
+          <div class="fw-bold">${numberFormat(data.salary)} ر.ع</div>
+        </div>
+        <div class="text-md-end">
+          <div class="small-muted">دخل إضافي</div>
+          <div class="fw-bold">${numberFormat(data.incomeSources)} ر.ع</div>
+        </div>
+        <div class="text-md-end">
+          <div class="small-muted">قروض/التزامات</div>
+          <div class="fw-bold text-danger">${numberFormat(data.loans)} ر.ع</div>
+        </div>
+      </div>
+
+      <hr>
+
+      <div id="expenseInputs" class="mb-3"></div>
+
+      <div class="d-flex gap-2 flex-column flex-sm-row mb-3">
+        <button id="addExpenseBtn" class="btn btn-outline-primary flex-grow-1">تسجيل مصروف اليوم</button>
+        <button id="endMonthBtn" class="btn btn-primary flex-grow-1">نهاية الشهر → تحويل الباقي للادخار</button>
+      </div>
+
+      <div id="predictionsContainer" class="mb-2"></div>
+      <div id="savingTipsContainer" class="mb-2 note"></div>
+
+      <div class="mt-3">
+        <canvas id="pieChart" height="160"></canvas>
+      </div>
+    </div>
+  `;
+
+  // helper
+  function numberFormat(v){ return (Math.round((+v)*100)/100).toLocaleString('en-US'); }
+
+  // fill expense inputs
+  const expenseInputs = document.getElementById('expenseInputs');
+  expenseInputs.innerHTML = '';
+  for(const cat of Object.keys(data.categories)){
+    const div = document.createElement('div');
+    div.className = 'd-flex gap-2 mb-2';
+    div.innerHTML = `
+      <div class="flex-grow-1">
+        <div class="category-name">${escapeHtml(cat)}</div>
+        <div class="small-muted">المخصص: ${numberFormat(data.categories[cat])} ر.ع</div>
+      </div>
+      <div style="width:180px;">
+        <input type="number" class="form-control expense-input" placeholder="أدخل المصروف اليومي" data-cat="${escapeHtml(cat)}" data-limit="${data.categories[cat]}">
+      </div>
+    `;
+    expenseInputs.appendChild(div);
   }
 
-  function googleLogin(){
-    const provider=new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider);
-  }
+  // add expense button behavior
+  document.getElementById('addExpenseBtn').onclick = async ()=>{
+    const newExpenses = {};
+    const overLimit = [];
+    const inputs = expenseInputs.getElementsByClassName('expense-input');
+    for(let i=0;i<inputs.length;i++){
+      const inp = inputs[i];
+      const cat = inp.dataset.cat;
+      const limit = parseFloat(inp.dataset.limit) || 0;
+      const val = parseFloat(inp.value) || 0;
+      newExpenses[cat] = val;
+      inp.classList.remove('over-limit');
+      if(limit && val > limit) { inp.classList.add('over-limit'); overLimit.push(cat); }
+    }
+    if(overLimit.length>0){
+      alert('⚠️ تجاوز الحد في الأقسام: ' + overLimit.join(', '));
+    }
+    // push new day
+    data.dailyExpenses = data.dailyExpenses || [];
+    data.dailyExpenses.push({ date: new Date().toISOString().split('T')[0], expenses: newExpenses });
+    try{
+      await db.collection('users').doc(uid).set({ dailyExpenses: data.dailyExpenses }, { merge:true });
+      renderChart(data);
+      renderPredictions(data);
+      renderSavingTips(data);
+      renderLineChart(data);
+      // clear inputs after save
+      for(let i=0;i<inputs.length;i++) inputs[i].value = '';
+    } catch(err){
+      console.error(err);
+      alert('حصل خطأ أثناء حفظ المصروفات.');
+    }
+  };
 
-  auth.onAuthStateChanged(user=>{
-    if(user){
-      authContainer.style.display='none';
-      app.style.display='block';
-      loadUserData(user.uid);
-    } else{
-      authContainer.style.display='block';
-      app.style.display='none';
-      showLogin();
+  // end month behavior
+  document.getElementById('endMonthBtn').onclick = async ()=>{
+    if(!confirm('هل تريدين نقل بقايا الفئات اليومية (إن وُجدت) إلى المدخرات؟')) return;
+    // compute totals
+    let totalSpent = 0;
+    for(const day of (data.dailyExpenses||[])){
+      for(const cat in day.expenses) totalSpent += (day.expenses[cat] || 0);
+    }
+    const totalBudget = Object.values(data.categories).reduce((a,b)=>a+b,0);
+    const remaining = totalBudget - totalSpent;
+    if(remaining <= 0){
+      alert('لا يوجد مبالغ فائضة لنقلها.');
+      return;
+    }
+    // add remaining to 'ادخار' category (create if missing)
+    data.categories['ادخار'] = (data.categories['ادخار'] || 0) + remaining;
+    try{
+      await db.collection('users').doc(uid).set({ categories: data.categories }, { merge:true });
+      alert(`تم نقل ${remaining.toFixed(2)} ر.ع إلى المدخرات.`);
+      renderChart(data);
+      renderPredictions(data);
+      renderSavingTips(data);
+      renderLineChart(data);
+    } catch(err){
+      console.error(err);
+      alert('خطأ أثناء تحديث المدخرات.');
+    }
+  };
+
+  // initial charts and widgets
+  renderChart(data);
+  renderPredictions(data);
+  renderSavingTips(data);
+  renderLineChart(data);
+
+  // helper to escape
+  function escapeHtml(t){ return (t+'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+}
+
+/* ================== Charts, Predictions, Tips ================== */
+function renderChart(data){
+  const ctx = document.getElementById('pieChart').getContext('2d');
+  const labels = Object.keys(data.categories || {});
+  const values = labels.map(k => Number(data.categories[k]||0));
+  // color logic: use soft-blues + gray palette, but keep red/yellow/green indication for over-limit in legend color mapping
+  const baseColors = ['#1e3a8a','#2563eb','#4f46e5','#60a5fa','#9fb8ff','#cfe3ff','#e8f0ff','#7c93d9'];
+  const colors = labels.map((lab,i) => baseColors[i % baseColors.length] || '#cfe3ff');
+
+  if(windowPieChart) windowPieChart.destroy();
+  windowPieChart = new Chart(ctx, {
+    type: 'pie',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors }] },
+    options: { plugins:{ legend:{ position:'bottom', labels:{ boxWidth:12 } } }, responsive:true, maintainAspectRatio:false }
+  });
+}
+
+function renderPredictions(data){
+  const container = document.getElementById('predictionsContainer');
+  container.innerHTML = "<b>📊 توقعات الإنفاق لبقية الشهر:</b><br>";
+  const today = new Date().getDate();
+  const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth()+1, 0).getDate();
+  const remainingDays = Math.max(1, daysInMonth - today);
+  for(const cat in data.categories){
+    const spent = (data.dailyExpenses||[]).reduce((s,d)=> s + (d.expenses[cat]||0), 0);
+    const remaining = (data.categories[cat] || 0) - spent;
+    const dailyPrediction = remainingDays>0 ? (remaining/remainingDays) : 0;
+    container.innerHTML += `${escapeHtml(cat)}: ${dailyPrediction.toFixed(2)} ر.ع يومياً متوقع<br>`;
+  }
+}
+
+function renderSavingTips(data){
+  const container = document.getElementById('savingTipsContainer');
+  const tips = [];
+  for(const cat in data.categories){
+    const spent = (data.dailyExpenses||[]).reduce((s,d)=> s + (d.expenses[cat]||0), 0);
+    const limit = data.categories[cat] || 0;
+    if(limit && spent > limit) tips.push(`🚨 قللي الإنفاق في ${escapeHtml(cat)} (${spent.toFixed(2)} > ${limit.toFixed(2)})`);
+    else if(limit && spent < limit*0.5) tips.push(`💡 تستطيعين تحويل فائض ${escapeHtml(cat)} إلى المدخرات`);
+  }
+  container.innerHTML = tips.length ? tips.join('<br>') : "🌿 لا توجد نصائح حالياً — استمري على هذا الأداء!";
+}
+
+/* simple daily totals line chart (small) */
+function renderLineChart(data){
+  const ctx = document.getElementById('lineChart').getContext('2d');
+  const labels = (data.dailyExpenses||[]).map(d => d.date);
+  // aggregate totals per day
+  const totals = (data.dailyExpenses||[]).map(d => {
+    return Object.values(d.expenses || {}).reduce((a,b)=>a+(b||0),0);
+  });
+  if(windowLineChart) windowLineChart.destroy();
+  windowLineChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'مجموع المصروف اليومي',
+        data: totals,
+        tension: 0.3,
+        fill: true,
+        backgroundColor: 'rgba(37,99,235,0.12)',
+        borderColor: '#2563eb',
+        pointRadius: 3
+      }]
+    },
+    options: {
+      plugins:{ legend:{ display:false } },
+      scales:{ y:{ beginAtZero:true } },
+      responsive:true,
+      maintainAspectRatio:false
     }
   });
+}
 
-  // ===== Load User Data =====
-  async function loadUserData(uid){
-    const docSnap = await db.collection('users').doc(uid).get();
-    if(!docSnap.exists){
-      budgetContainer.innerHTML="<div class='text-center'>خطأ: البيانات غير موجودة</div>";
-      return;
-    }
-    const data=docSnap.data();
-    if(!data.salary || !data.categories || Object.keys(data.categories).length===0){
-      renderInitialSetup(uid, data);
-      return;
-    }
-    renderBudget(data, uid);
-  }
-
-  // ===== Initial Setup =====
-  function renderInitialSetup(uid, data){
-    setupContainer.innerHTML=`
-      <div class="card card-royal p-3 mx-auto" style="max-width:500px;">
-        <h5>الخطوة 1: بيانات الراتب والدخل</h5>
-        <input type="number" id="salaryInput" class="form-control mb-2" placeholder="راتبك الأساسي" value="${data.salary||''}">
-        <input type="number" id="incomeInput" class="form-control mb-2" placeholder="مصادر دخل أخرى (اختياري)" value="${data.incomeSources||''}">
-        <input type="number" id="loansInput" class="form-control mb-2" placeholder="أي قروض أو التزامات" value="${data.loans||''}">
-        <h5 class="mt-3">الخطوة 2: الأقسام والمبالغ</h5>
-        <div id="userCategoriesContainer"></div>
-        <button id="addCategoryBtn" class="btn btn-outline-primary mb-2 w-100">إضافة قسم</button>
-        <button id="saveSetupBtn" class="btn btn-royal mt-2 w-100">حفظ البيانات</button>
-      </div>
-    `;
-
-    const container=document.getElementById('userCategoriesContainer');
-
-    function addCategoryRow(name="",alloc=""){
-      const div=document.createElement('div');
-      div.className="d-flex gap-2 mb-2";
-      div.innerHTML=`
-        <input type="text" class="form-control category-name-input" placeholder="اسم القسم" value="${name}">
-        <input type="number" class="form-control category-alloc-input" placeholder="المبلغ" value="${alloc}">
-      `;
-      container.appendChild(div);
-    }
-
-    // ثلاثة أسطر افتراضية
-    for(let i=0;i<3;i++) addCategoryRow();
-
-    document.getElementById('addCategoryBtn').onclick=()=> addCategoryRow();
-
-    document.getElementById('saveSetupBtn').onclick=async ()=>{
-      const salary=parseFloat(document.getElementById('salaryInput').value)||0;
-      const income=parseFloat(document.getElementById('incomeInput').value)||0;
-      const loans=parseFloat(document.getElementById('loansInput').value)||0;
-
-      const nameInputs=document.getElementsByClassName('category-name-input');
-      const allocInputs=document.getElementsByClassName('category-alloc-input');
-      let categoriesObj={};
-      for(let i=0;i<nameInputs.length;i++){
-        const name=nameInputs[i].value.trim();
-        const alloc=parseFloat(allocInputs[i].value)||0;
-        if(name) categoriesObj[name]=alloc;
-      }
-      if(Object.keys(categoriesObj).length===0){
-        alert("الرجاء إدخال قسم واحد على الأقل");
-        return;
-      }
-
-      await db.collection('users').doc(uid).set({
-        salary:salary,
-        incomeSources:income,
-        loans:loans,
-        categories:categoriesObj,
-        dailyExpenses:[]
-      },{merge:true});
-
-      // تحميل البيانات مباشرة بعد الحفظ
-      const updatedDoc=await db.collection('users').doc(uid).get();
-      renderBudget(updatedDoc.data(), uid);
-    };
-  }
-
-  // ===== Render Budget =====
-  function renderBudget(data, uid){
-    setupContainer.innerHTML=""; // إخفاء النموذج بعد الإعداد
-    budgetContainer.innerHTML=`
-      <div class="card p-3 card-royal">
-        <h5 class="mb-3">لوحة الميزانية</h5>
-        <div>الراتب: ${data.salary} ريال</div>
-        <div>دخل إضافي: ${data.incomeSources} ريال</div>
-        <div>قروض/التزامات: ${data.loans} ريال</div>
-        <div id="expenseInputs"></div>
-        <button id="addExpenseBtn" class="btn btn-outline-primary mb-2">اضافة المصروفات</button>
-        <button id="endMonthBtn" class="btn btn-gold mb-2">نهاية الشهر → تحويل الباقي للادخار</button>
-        <div id="predictionsContainer" class="mb-2"></div>
-        <div id="savingTipsContainer" class="mb-2 note"></div>
-        <canvas id="pieChart" height="200"></canvas>
-      </div>
-    `;
-
-    const expenseInputs=document.getElementById('expenseInputs');
-    for(const cat in data.categories){
-      const div=document.createElement('div');
-      div.className="d-flex gap-2 mb-2";
-      div.innerHTML=`
-        <span class="category-name w-50">${cat}</span>
-        <input type="number" class="form-control w-50 expense-input" placeholder="المصروف اليومي" data-cat="${cat}" data-limit="${data.categories[cat]}">
-      `;
-      expenseInputs.appendChild(div);
-    }
-
-    document.getElementById('addExpenseBtn').onclick=async ()=>{
-      const newExpenses={};
-      let overLimitCats=[];
-      Array.from(document.getElementsByClassName('expense-input')).forEach(inp=>{
-        const cat=inp.dataset.cat;
-        const limit=parseFloat(inp.dataset.limit);
-        const val=parseFloat(inp.value)||0;
-        newExpenses[cat]=val;
-        inp.classList.remove('over-limit');
-        if(val>limit) inp.classList.add('over-limit'), overLimitCats.push(cat);
-      });
-      if(overLimitCats.length>0) alert("⚠️ تجاوز الحد في الأقسام: "+overLimitCats.join(", "));
-      data.dailyExpenses.push({date:new Date().toISOString().split('T')[0],expenses:newExpenses});
-      await db.collection('users').doc(uid).update({dailyExpenses:data.dailyExpenses});
-      renderChart(data);
-      renderPredictions(data);
-      renderSavingTips(data);
-      renderLineChart(data);
-    };
-
-    document.getElementById('endMonthBtn').onclick=async ()=>{
-      let totalSpent=0;
-      for(const day of data.dailyExpenses) for(const cat in day.expenses) totalSpent+=day.expenses[cat];
-      const totalBudget=Object.values(data.categories).reduce((a,b)=>a+b,0);
-      const remaining=totalBudget-totalSpent;
-      alert(`تم تحويل ${remaining.toFixed(2)} ريال للادخار`);
-      data.categories["ادخار"]=(data.categories["ادخار"]||0)+remaining;
-      await db.collection('users').doc(uid).update({categories:data.categories});
-      renderChart(data);
-      renderPredictions(data);
-      renderSavingTips(data);
-      renderLineChart(data);
-    };
-
-    renderChart(data);
-    renderPredictions(data);
-    renderSavingTips(data);
-    renderLineChart(data);
-  }
-
-  // ===== Pie Chart =====
-  function renderChart(data){
-    const ctx=document.getElementById('pieChart').getContext('2d');
-    const colors=Object.keys(data.categories).map(cat=>{
-      const spent=data.dailyExpenses.reduce((sum,d)=>sum+(d.expenses[cat]||0),0);
-      const limit=data.categories[cat];
-      const ratio=spent/limit;
-      if(ratio<0.8) return "#4caf50";
-      else if(ratio<=1) return "#ffeb3b";
-      else return "#f44336";
-    });
-    const chartData={
-      labels:Object.keys(data.categories),
-      datasets:[{data:Object.values(data.categories), backgroundColor:colors}]
-    };
-    if(window.myChart) window.myChart.destroy();
-    window.myChart=new Chart(ctx,{type:'pie',data:chartData});
-  }
-
-  // ===== Predictions =====
-  function renderPredictions(data){
-    const container=document.getElementById('predictionsContainer');
-    container.innerHTML="<b>توقعات الإنفاق لبقية الشهر:</b><br>";
-    const today=new Date().getDate();
-    const daysInMonth=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();
-    for(const cat in data.categories){
-      const spent=data.dailyExpenses.reduce((sum,d)=>sum+(d.expenses[cat]||0),0);
-      const remaining=data.categories[cat]-spent;
-      const dailyPrediction=remaining/(daysInMonth-today);
-      container.innerHTML+=`${cat}: ${dailyPrediction.toFixed(2)} ريال يومياً متوقع<br>`;
-    }
-  }
-
-  // ===== Saving Tips =====
-  function renderSavingTips(data){
-    const container=document.getElementById('savingTipsContainer');
-    let tips=[];
-    for(const cat in data.categories){
-      const spent=data.dailyExpenses.reduce((sum,d)=>sum+(d.expenses[cat]||0),0);
-      const limit=data.categories[cat];
-      if(spent>limit) tips.push(`قللي الإنفاق في ${cat} لتوفير أكثر`);
-      else if(spent<limit*0.5) tips.push(`يمكنك استثمار الفائض من ${cat} في الادخار`);
-    }
-    container.innerHTML=tips.length?tips.join("<br>"):"لا توجد نصائح حالياً، استمري على هذا الأداء 👍";
-  }
-
-  // ===== Line Chart =====
-  function renderLineChart(data){
-    const ctx=document.getElementById('lineChart').getContext('2d');
-    const labels=data.dailyExpenses.map(d=>d.date);
-    const datasets=Object.keys(data.categories).map(cat=>{
-      const values=data.dailyExpenses.map(d=>d.expenses[cat]||0);
-      return {label:cat, data:values, borderColor:'#'+Math.floor(Math.random()*16777215).toString(16), tension:0.2, fill:false};
-    });
-    if(window.myLineChart) window.myLineChart.destroy();
-    window.myLineChart=new Chart(ctx,{type:'line',data:{labels,datasets}});
-  }
-
+/* ================== Utils ================== */
+// small helper used earlier
+function escapeHtml(t){ return (t+'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 </script>
 </body>
 </html>
