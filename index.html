@@ -18,29 +18,73 @@
 
 <style>
 :root{
-  --pink:#f7c6d9;
-  --deep-pink:#f08fb8;
-  --beige:#fff6f3;
-  --gold:#d6b86a;
-  --card-shadow:0 6px 18px rgba(224,155,190,0.18);
-  --accent-text:#6b2f46;
+  --royal-purple:#4b0082;
+  --royal-gold:#d6b86a;
+  --royal-silver:#c0c0c0;
+  --light-purple:#a76bcf;
+  --card-shadow:0 6px 18px rgba(75,0,130,0.2);
+  --accent-text:#2c003e;
 }
-body{ background:linear-gradient(180deg,#fff 0%,#fff6f8 100%); color:var(--accent-text); font-family:"Segoe UI", Tahoma, Geneva, Verdana, sans-serif; padding-bottom:40px;}
-.card-rose{background: linear-gradient(180deg, rgba(240,143,184,0.08), rgba(247,198,217,0.03)); border:none; box-shadow:var(--card-shadow); border-radius:14px;}
-.stat-card{border-radius:12px; padding:18px;}
-.category-name{font-weight:700; font-size:0.95rem;}
-.small-muted{color:#7a5a67; font-size:0.88rem;}
-.btn-gold{background:var(--gold); color:#3b2d1d; border:none;}
-.form-control:focus{box-shadow:none; border-color: var(--deep-pink);}
-footer{margin-top:30px;color:#7a5a67;font-size:0.9rem;}
-.rounded-card{border-radius:12px;}
-.note{font-size:0.86rem;color:#8a5a6d;}
+body{
+  background: linear-gradient(180deg,#f2e9ff 0%,#ffffff 100%);
+  color: var(--accent-text);
+  font-family:"Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  padding-bottom:40px;
+}
+.card-royal{
+  background: linear-gradient(180deg, rgba(75,0,130,0.05), rgba(167,107,207,0.05));
+  border:none;
+  box-shadow: var(--card-shadow);
+  border-radius:16px;
+}
+.stat-card{
+  border-radius:14px;
+  padding:18px;
+}
+.category-name{
+  font-weight:700;
+  font-size:0.95rem;
+}
+.small-muted{
+  color:#7a5a67;
+  font-size:0.88rem;
+}
+.btn-gold{
+  background: var(--royal-gold);
+  color:#3b2d1d;
+  border:none;
+}
+.btn-royal{
+  background: var(--royal-purple);
+  color: var(--royal-gold);
+  border:none;
+}
+.btn-royal:hover{
+  background: var(--light-purple);
+}
+.form-control:focus{
+  box-shadow:none;
+  border-color: var(--royal-purple);
+}
+.expense-input.over-limit{
+  border-color:red;
+  background-color:#ffe6e6;
+}
+footer{
+  margin-top:30px;
+  color:#7a5a67;
+  font-size:0.9rem;
+}
+.note{
+  font-size:0.86rem;
+  color:#8a5a6d;
+}
 </style>
 </head>
 <body>
 <div class="container py-4">
   <header class="mb-3">
-    <h3 class="text-center mb-3">💗 راتبي الذكي</h3>
+    <h3 class="text-center mb-3">👑 راتبي الذكي</h3>
     <div id="authContainer" class="text-center"></div>
   </header>
 
@@ -68,18 +112,17 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// ===== عناصر DOM =====
+// ===== DOM elements =====
 const authContainer = document.getElementById('authContainer');
 const app = document.getElementById('app');
 const budgetContainer = document.getElementById('budgetContainer');
 
-// ===== تخزين البريد وكلمة المرور مؤقتاً =====
 let tempEmail="", tempPassword="";
 
-// ===== تسجيل الدخول =====
+// ===== Login / Signup =====
 function showLogin(){
   authContainer.innerHTML = `
-  <div class="card p-3 card-rose mx-auto" style="max-width:400px;">
+  <div class="card p-3 card-royal mx-auto" style="max-width:400px;">
     <h5 class="mb-3 text-center">تسجيل الدخول</h5>
     <input type="email" id="email" class="form-control mb-2" placeholder="البريد الإلكتروني">
     <input type="password" id="password" class="form-control mb-2" placeholder="كلمة المرور">
@@ -88,7 +131,6 @@ function showLogin(){
     <button id="googleBtn" class="btn btn-outline-danger w-100">تسجيل الدخول بـ Google</button>
   </div>
   `;
-
   document.getElementById('loginBtn').onclick = login;
   document.getElementById('signupBtn').onclick = signupStep1;
   document.getElementById('googleBtn').onclick = googleLogin;
@@ -106,7 +148,7 @@ function signupStep1(){
   if(!tempEmail || !tempPassword){alert("ادخلي البريد وكلمة المرور"); return;}
   
   authContainer.innerHTML = `
-  <div class="card p-3 card-rose mx-auto" style="max-width:500px;">
+  <div class="card p-3 card-royal mx-auto" style="max-width:500px;">
     <h5 class="mb-3 text-center">اعدادات الميزانية</h5>
     <input type="number" id="salary" class="form-control mb-2" placeholder="ادخلي راتبك الشهري">
     <input type="number" id="installments" class="form-control mb-2" placeholder="مبلغ الاقساط الشهرية (إن وجد)">
@@ -136,7 +178,6 @@ function signupStep1(){
     const categories = {};
     for(let i=0;i<categoryNames.length;i++){ categories[categoryNames[i]] = categoryAmounts[i]; }
 
-    // إنشاء المستخدم وحفظ البيانات
     auth.createUserWithEmailAndPassword(tempEmail,tempPassword)
     .then(async userCredential=>{
         const uid = userCredential.user.uid;
@@ -156,7 +197,7 @@ function googleLogin(){
   auth.signInWithPopup(provider).catch(e=>alert(e.message));
 }
 
-// ===== مراقبة تسجيل الدخول =====
+// ===== Auth state =====
 auth.onAuthStateChanged(user=>{
   if(user){
     authContainer.style.display='none';
@@ -169,7 +210,7 @@ auth.onAuthStateChanged(user=>{
   }
 });
 
-// ===== تحميل بيانات المستخدم + لوحة Budget Planner =====
+// ===== Load User Data =====
 async function loadUserData(uid){
   const docRef = db.collection('users').doc(uid);
   const docSnap = await docRef.get();
@@ -181,9 +222,10 @@ async function loadUserData(uid){
   renderBudget(data, uid);
 }
 
+// ===== Render Budget =====
 function renderBudget(data, uid){
   budgetContainer.innerHTML = `
-  <div class="card p-3 card-rose">
+  <div class="card p-3 card-royal">
     <h5 class="mb-3">لوحة الميزانية</h5>
     <div class="mb-3">
       <input type="date" id="expenseDate" class="form-control mb-2" value="${new Date().toISOString().split('T')[0]}">
@@ -202,7 +244,7 @@ function renderBudget(data, uid){
     div.className = "d-flex gap-2 mb-2";
     div.innerHTML = `
       <span class="category-name w-50">${cat}</span>
-      <input type="number" class="form-control w-50 expense-input" placeholder="المصروف اليومي" data-cat="${cat}">
+      <input type="number" class="form-control w-50 expense-input" placeholder="المصروف اليومي" data-cat="${cat}" data-limit="${data.categories[cat]}">
     `;
     expenseInputs.appendChild(div);
   }
@@ -210,11 +252,24 @@ function renderBudget(data, uid){
   document.getElementById('addExpenseBtn').onclick = async ()=>{
     const date = document.getElementById('expenseDate').value;
     const newExpenses = {};
+    let overLimitCats = [];
     Array.from(document.getElementsByClassName('expense-input')).forEach(inp=>{
       const cat = inp.dataset.cat;
+      const limit = parseFloat(inp.dataset.limit);
       const val = parseFloat(inp.value)||0;
       newExpenses[cat] = val;
+      // ===== تنبيه إذا تجاوز الحد =====
+      if(val > limit){
+        inp.classList.add('over-limit');
+        overLimitCats.push(cat);
+      } else {
+        inp.classList.remove('over-limit');
+      }
     });
+    if(overLimitCats.length>0){
+      alert("تنبيه! لقد تجاوزت الحد في الأقسام التالية: " + overLimitCats.join(", "));
+    }
+
     data.dailyExpenses.push({date, expenses:newExpenses});
     await db.collection('users').doc(uid).update({dailyExpenses:data.dailyExpenses});
     alert("تم حفظ المصروفات");
@@ -242,14 +297,14 @@ function renderBudget(data, uid){
   renderChart(data);
 }
 
-// ===== رسم Pie Chart =====
+// ===== Chart =====
 function renderChart(data){
   const ctx = document.getElementById('pieChart').getContext('2d');
   const chartData = {
     labels: Object.keys(data.categories),
     datasets:[{
       data: Object.values(data.categories),
-      backgroundColor: ["#f7c6d9","#f08fb8","#fff6f3","#d6b86a","#f3b1c6","#d67a9f","#ffc0cb"]
+      backgroundColor: ["#a76bcf","#4b0082","#d6b86a","#f3b1c6","#d67a9f","#ffc0cb","#c0c0c0"]
     }]
   };
   if(window.myChart) window.myChart.destroy();
