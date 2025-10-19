@@ -46,6 +46,7 @@
   </header>
 
   <div id="app" style="display:none;">
+    <div id="setupContainer"></div>
     <div id="budgetContainer"></div>
     <canvas id="lineChart" height="150"></canvas>
   </div>
@@ -70,9 +71,9 @@
   const auth=firebase.auth();
   const db=firebase.firestore();
 
-  // ===== DOM =====
   const authContainer=document.getElementById('authContainer');
   const app=document.getElementById('app');
+  const setupContainer=document.getElementById('setupContainer');
   const budgetContainer=document.getElementById('budgetContainer');
 
   // ===== Login / Signup =====
@@ -96,7 +97,7 @@
     const email=document.getElementById('email').value;
     const password=document.getElementById('password').value;
     auth.createUserWithEmailAndPassword(email,password).then(cred=>{
-      db.collection('users').doc(cred.user.uid).set({categories:{},dailyExpenses:[]});
+      db.collection('users').doc(cred.user.uid).set({categories:{},dailyExpenses:[],salary:0,incomeSources:0,loans:0});
     }).catch(err=>alert(err.message));
   }
 
@@ -126,70 +127,88 @@
       return;
     }
 
-    // إذا لم يكن لديه أقسام نطلب منه إدخال الأقسام والمبالغ
-    if(!docSnap.data().categories || Object.keys(docSnap.data().categories).length===0){
-      authContainer.style.display='none';
-      app.style.display='block';
+    const data=docSnap.data();
 
-      budgetContainer.innerHTML=`
-        <div class="card card-royal p-3 mx-auto" style="max-width:500px;">
-          <h5>أدخل الأقسام والمبالغ لكل قسم</h5>
-          <div id="userCategoriesContainer"></div>
-          <button id="addCategoryBtn" class="btn btn-outline-primary mb-2 w-100">إضافة قسم</button>
-          <button id="saveCategoriesBtn" class="btn btn-royal mt-2 w-100">حفظ الأقسام</button>
-        </div>
-      `;
-
-      const container=document.getElementById('userCategoriesContainer');
-
-      function addCategoryRow(name="",alloc=""){
-        const div=document.createElement('div');
-        div.className="d-flex gap-2 mb-2";
-        div.innerHTML=`
-          <input type="text" class="form-control category-name-input" placeholder="اسم القسم" value="${name}">
-          <input type="number" class="form-control category-alloc-input" placeholder="المبلغ" value="${alloc}">
-        `;
-        container.appendChild(div);
-      }
-
-      // بداية بـ 3 أسطر
-      for(let i=0;i<3;i++) addCategoryRow();
-
-      document.getElementById('addCategoryBtn').onclick=()=> addCategoryRow();
-
-      // حفظ الأقسام
-      document.getElementById('saveCategoriesBtn').onclick=async ()=>{
-        const nameInputs=document.getElementsByClassName('category-name-input');
-        const allocInputs=document.getElementsByClassName('category-alloc-input');
-        let categoriesObj={};
-        for(let i=0;i<nameInputs.length;i++){
-          const name=nameInputs[i].value.trim();
-          const alloc=parseFloat(allocInputs[i].value)||0;
-          if(name) categoriesObj[name]=alloc;
-        }
-        if(Object.keys(categoriesObj).length===0){
-          alert("الرجاء إدخال قسم واحد على الأقل");
-          return;
-        }
-        await db.collection('users').doc(uid).update({
-          categories:categoriesObj,
-          dailyExpenses:[]
-        });
-        loadUserData(uid);
-      };
-
+    // إذا لم يدخل بياناته الأولية
+    if(!data.salary || !data.incomeSources || !data.loans || !data.categories || Object.keys(data.categories).length===0){
+      renderInitialSetup(uid, data);
       return;
     }
 
-    // إذا الأقسام موجودة بالفعل
-    renderBudget(docSnap.data(), uid);
+    renderBudget(data, uid);
+  }
+
+  // ===== Initial Setup (Salary / Income / Loans / Categories) =====
+  function renderInitialSetup(uid, data){
+    setupContainer.innerHTML=`
+      <div class="card card-royal p-3 mx-auto" style="max-width:500px;">
+        <h5>الخطوة 1: بيانات الراتب والدخل</h5>
+        <input type="number" id="salaryInput" class="form-control mb-2" placeholder="راتبك الأساسي" value="${data.salary||''}">
+        <input type="number" id="incomeInput" class="form-control mb-2" placeholder="مصادر دخل أخرى (اختياري)" value="${data.incomeSources||''}">
+        <input type="number" id="loansInput" class="form-control mb-2" placeholder="أي قروض أو التزامات" value="${data.loans||''}">
+        <h5 class="mt-3">الخطوة 2: الأقسام والمبالغ</h5>
+        <div id="userCategoriesContainer"></div>
+        <button id="addCategoryBtn" class="btn btn-outline-primary mb-2 w-100">إضافة قسم</button>
+        <button id="saveSetupBtn" class="btn btn-royal mt-2 w-100">حفظ البيانات</button>
+      </div>
+    `;
+
+    const container=document.getElementById('userCategoriesContainer');
+
+    function addCategoryRow(name="",alloc=""){
+      const div=document.createElement('div');
+      div.className="d-flex gap-2 mb-2";
+      div.innerHTML=`
+        <input type="text" class="form-control category-name-input" placeholder="اسم القسم" value="${name}">
+        <input type="number" class="form-control category-alloc-input" placeholder="المبلغ" value="${alloc}">
+      `;
+      container.appendChild(div);
+    }
+
+    // ثلاثة أسطر افتراضية
+    for(let i=0;i<3;i++) addCategoryRow();
+
+    document.getElementById('addCategoryBtn').onclick=()=> addCategoryRow();
+
+    document.getElementById('saveSetupBtn').onclick=async ()=>{
+      const salary=parseFloat(document.getElementById('salaryInput').value)||0;
+      const income=parseFloat(document.getElementById('incomeInput').value)||0;
+      const loans=parseFloat(document.getElementById('loansInput').value)||0;
+
+      const nameInputs=document.getElementsByClassName('category-name-input');
+      const allocInputs=document.getElementsByClassName('category-alloc-input');
+      let categoriesObj={};
+      for(let i=0;i<nameInputs.length;i++){
+        const name=nameInputs[i].value.trim();
+        const alloc=parseFloat(allocInputs[i].value)||0;
+        if(name) categoriesObj[name]=alloc;
+      }
+      if(Object.keys(categoriesObj).length===0){
+        alert("الرجاء إدخال قسم واحد على الأقل");
+        return;
+      }
+
+      await db.collection('users').doc(uid).update({
+        salary:salary,
+        incomeSources:income,
+        loans:loans,
+        categories:categoriesObj,
+        dailyExpenses:[]
+      });
+
+      loadUserData(uid);
+    };
   }
 
   // ===== Render Budget =====
   function renderBudget(data, uid){
+    setupContainer.innerHTML=""; // إخفاء النموذج بعد الإعداد
     budgetContainer.innerHTML=`
       <div class="card p-3 card-royal">
         <h5 class="mb-3">لوحة الميزانية</h5>
+        <div>الراتب: ${data.salary} ريال</div>
+        <div>دخل إضافي: ${data.incomeSources} ريال</div>
+        <div>قروض/التزامات: ${data.loans} ريال</div>
         <div id="expenseInputs"></div>
         <button id="addExpenseBtn" class="btn btn-outline-primary mb-2">اضافة المصروفات</button>
         <button id="endMonthBtn" class="btn btn-gold mb-2">نهاية الشهر → تحويل الباقي للادخار</button>
