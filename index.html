@@ -1,700 +1,343 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>راتبي الذكي — لوحة التحكم</title>
-
-  <!-- Bootstrap -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-  <!-- Firebase compat + (no charts) -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-  <style>
-    :root{
-      --bg:#f5f6fa;
-      --card-bg:#ffffff;
-      --title-blue:#1e3a8a;
-      --btn-blue:#2563eb;
-      --muted:#6b7280;
-      --border:#e6edf8;
-      --shadow: 0 6px 18px rgba(30,58,138,0.06);
-      --accent:#0f172a;
-    }
-    html,body{ height:100%; }
-    body{
-      background:var(--bg);
-      color:var(--accent);
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      margin:0;
-      padding:0;
-    }
-
-    /* layout */
-    .app-shell { display:flex; min-height:100vh; gap:20px; padding:20px; box-sizing:border-box; }
-    .sidebar {
-      width:260px;
-      background:var(--card-bg);
-      border:1px solid var(--border);
-      border-radius:12px;
-      box-shadow:var(--shadow);
-      padding:16px;
-      flex-shrink:0;
-    }
-    .main {
-      flex:1;
-      display:flex;
-      flex-direction:column;
-      gap:16px;
-    }
-
-    /* sidebar items */
-    .brand { display:flex; gap:12px; align-items:center; margin-bottom:12px; }
-    .logo {
-      width:44px; height:44px; border-radius:10px;
-      background:linear-gradient(180deg,var(--btn-blue),#1e40af);
-      color:white; display:flex; align-items:center; justify-content:center; font-weight:700;
-      box-shadow:0 6px 12px rgba(37,99,235,0.12);
-    }
-    .nav-item {
-      display:flex; align-items:center; gap:10px;
-      padding:10px; border-radius:8px; cursor:pointer; color:var(--title-blue);
-    }
-    .nav-item.active { background:rgba(37,99,235,0.08); font-weight:700; }
-    .nav-item:hover { background:rgba(37,99,235,0.04); }
-
-    /* content cards */
-    .card-soft{
-      background:var(--card-bg);
-      border:1px solid var(--border);
-      border-radius:12px;
-      box-shadow:var(--shadow);
-      padding:16px;
-    }
-    h4 { color:var(--title-blue); }
-    .small-muted{ color:var(--muted); font-size:0.88rem; }
-
-    /* forms */
-    .form-control:focus{
-      border-color:var(--btn-blue);
-      box-shadow:0 0 0 0.15rem rgba(37,99,235,0.12);
-    }
-    .expense-input.over-limit { border-color:#ff4d4f; background:#fff1f0; }
-
-    /* responsive */
-    @media (max-width: 900px){
-      .app-shell{ flex-direction:column; padding:12px; }
-      .sidebar{ width:100%; display:flex; gap:12px; overflow:auto; }
-      .main{ width:100%; }
-    }
-
-    /* small helpers */
-    .muted { color:var(--muted); }
-    .kpi { font-weight:700; font-size:1.2rem; }
-    .table-fixed tbody td { vertical-align:middle; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>راتبي الذكي — Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --main-blue:#3b6bff;
+  --light-gray:#f5f5f5;
+  --card-shadow:0 6px 18px rgba(0,0,128,0.1);
+  --accent-text:#2c003e;
+}
+body{
+  background: var(--light-gray);
+  color: var(--accent-text);
+  font-family:"Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  margin:0;
+}
+.sidebar{
+  width:220px; background:#ffffff; position:fixed; top:0; bottom:0; left:0;
+  border-right:1px solid #ddd; padding-top:20px; transition:0.3s;
+}
+.sidebar a{ display:block; padding:12px 20px; color:#333; text-decoration:none; margin-bottom:2px; border-radius:6px;}
+.sidebar a:hover, .sidebar a.active{ background:var(--main-blue); color:#fff;}
+.content{margin-left:220px; padding:20px;}
+.card-royal{ background:#fff; border:none; box-shadow:var(--card-shadow); border-radius:12px; padding:15px; margin-bottom:20px;}
+.btn-main{ background:var(--main-blue); color:#fff; border:none;}
+.btn-main:hover{ background:#5a82ff;}
+.form-control:focus{ box-shadow:none; border-color:var(--main-blue);}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+@media(max-width:768px){.sidebar{left:-220px;} .sidebar.show{left:0;} .content{margin-left:0;}}
+</style>
 </head>
 <body>
 
-<div class="container-fluid p-3">
-  <div class="text-center mb-3">
-    <h3 class="mb-1" style="color:var(--title-blue)">👑 راتبي الذكي</h3>
-    <div id="authWrapper" class="d-flex justify-content-center"></div>
-  </div>
+<div class="sidebar" id="sidebar">
+  <a href="#" class="active" data-tab="daily">🏷️ المصاريف اليومية</a>
+  <a href="#" data-tab="weekly">📊 التحليلات الأسبوعية</a>
+  <a href="#" data-tab="predictions">🔮 التوقعات</a>
+  <a href="#" data-tab="account">⚙️ حسابك</a>
+  <a href="#" onclick="logout()">🚪 تسجيل الخروج</a>
+</div>
 
-  <div id="appShell" class="app-shell" style="display:none;">
-
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-      <div class="brand">
-        <div class="logo">R</div>
-        <div>
-          <div class="fw-bold">راتبي الذكي</div>
-          <div class="small-muted">لوحة التحكم</div>
-        </div>
-      </div>
-
-      <div id="navList" class="mb-3">
-        <div class="nav-item active" data-tab="tab-daily">💸 المصاريف اليومية</div>
-        <div class="nav-item" data-tab="tab-weekly">📊 التحليلات الأسبوعية</div>
-        <div class="nav-item" data-tab="tab-pred">🔮 التوقعات</div>
-      </div>
-
-      <hr>
-
-      <div class="small-muted mb-2">حسابك</div>
-      <div id="userInfo" class="mb-3">
-        <!-- سيملأ ديناميكيًا -->
-        <div class="muted">... جار التحميل</div>
-      </div>
-
-      <div class="d-grid">
-        <button id="logoutBtn" class="btn btn-outline-danger btn-sm">تسجيل الخروج</button>
-      </div>
-    </aside>
-
-    <!-- Main content -->
-    <main class="main">
-
-      <!-- SETUP / MAIN PANELS (rendered dynamically) -->
-      <div id="contentArea"></div>
-
-    </main>
-
+<div class="content">
+  <button class="btn btn-main mb-3 d-md-none" onclick="toggleSidebar()">☰ القائمة</button>
+  <div id="authContainer"></div>
+  <div id="app" style="display:none;">
+    <div id="dailyTab" class="tabContent"></div>
+    <div id="weeklyTab" class="tabContent" style="display:none;"></div>
+    <div id="predictionsTab" class="tabContent" style="display:none;"></div>
+    <div id="accountTab" class="tabContent" style="display:none;"></div>
   </div>
 </div>
 
-<!-- Firebase config (same as before) -->
 <script>
-  const firebaseConfig = {
-    apiKey:"AIzaSyB-1kkLnKv51PmEmwOIk3gqsigTJOU3Cgw",
-    authDomain:"budget-salary.firebaseapp.com",
-    projectId:"budget-salary",
-    storageBucket:"budget-salary.firebasestorage.app",
-    messagingSenderId:"833349662009",
-    appId:"1:833349662009:web:2fb64df1fe71a801a0a4e8",
-    measurementId:"G-0LS4TCBJYZ"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-  const db = firebase.firestore();
-</script>
+const firebaseConfig = {
+  apiKey:"AIzaSyB-1kkLnKv51PmEmwOIk3gqsigTJOU3Cgw",
+  authDomain:"budget-salary.firebaseapp.com",
+  projectId:"budget-salary",
+  storageBucket:"budget-salary.firebasestorage.app",
+  messagingSenderId:"833349662009",
+  appId:"1:833349662009:web:2fb64df1fe71a801a0a4e8",
+};
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth();
+const db=firebase.firestore();
 
-<script>
-/* =================== Basic DOM refs =================== */
-const authWrapper = document.getElementById('authWrapper');
-const appShell = document.getElementById('appShell');
-const contentArea = document.getElementById('contentArea');
-const navList = document.getElementById('navList');
-const userInfo = document.getElementById('userInfo');
-const logoutBtn = document.getElementById('logoutBtn');
+const authContainer=document.getElementById('authContainer');
+const app=document.getElementById('app');
 
-let currentUserId = null;
-let currentData = null; // cached user doc
-
-/* =================== AUTH UI =================== */
-function showAuthUI(){
-  authWrapper.innerHTML = `
-    <div class="card card-soft p-3" style="max-width:520px; width:100%;">
-      <div class="row g-2">
-        <div class="col-12 col-md-5">
-          <input id="email" class="form-control" placeholder="البريد الإلكتروني" type="email">
-        </div>
-        <div class="col-12 col-md-5">
-          <input id="password" class="form-control" placeholder="كلمة المرور" type="password">
-        </div>
-        <div class="col-12 col-md-2 d-grid">
-          <button id="loginBtn" class="btn btn-primary">دخول</button>
-        </div>
-        <div class="col-12 d-flex gap-2">
-          <button id="signupBtn" class="btn btn-outline-primary flex-grow-1">إنشاء حساب</button>
-          <button id="googleBtn" class="btn btn-outline-dark">Google</button>
-        </div>
-      </div>
-      <div class="small-muted mt-2">لأول مرة؟ اضغط إنشاء حساب ثم املئي بيانات الإعداد.</div>
-    </div>
-  `;
-
-  document.getElementById('loginBtn').onclick = () => {
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    if(!email || !password) { alert('أدخل البريد وكلمة المرور'); return; }
-    auth.signInWithEmailAndPassword(email,password).catch(e=> alert(e.message));
-  };
-  document.getElementById('signupBtn').onclick = () => {
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    if(!email || !password) { alert('أدخل البريد وكلمة المرور'); return; }
-    auth.createUserWithEmailAndPassword(email,password)
-      .then(async cred=>{
-        // initialize doc safely
-        await db.collection('users').doc(cred.user.uid).set({
-          salary:0, incomeSources:0, loans:0, categories:{}, dailyExpenses:[]
-        }, { merge:true });
-      })
-      .catch(e=> alert(e.message));
-  };
-  document.getElementById('googleBtn').onclick = () => {
-    const p = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(p).catch(e=> alert(e.message));
-  };
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('show');
 }
 
-/* =================== On auth state change =================== */
-auth.onAuthStateChanged(async user=>{
-  if(user){
-    currentUserId = user.uid;
-    authWrapper.innerHTML = ''; // hide auth ui
-    appShell.style.display = 'flex';
-    await pullAndRenderUser(user.uid);
-  } else {
-    currentUserId = null;
-    appShell.style.display = 'none';
-    showAuthUI();
-  }
+// ===== Login / Signup =====
+function showLogin(){
+  authContainer.innerHTML=`
+    <input type="email" id="email" class="form-control mb-2" placeholder="البريد الإلكتروني">
+    <input type="password" id="password" class="form-control mb-2" placeholder="كلمة المرور">
+    <button class="btn btn-main w-100 mb-2" onclick="login()">تسجيل الدخول</button>
+    <button class="btn btn-outline-primary w-100 mb-2" onclick="signupStep1()">إنشاء حساب</button>
+    <button class="btn btn-outline-secondary w-100" onclick="googleLogin()">تسجيل بـ Google</button>
+  `;
+}
+
+function login(){
+  const email=document.getElementById('email').value;
+  const password=document.getElementById('password').value;
+  auth.signInWithEmailAndPassword(email,password).catch(err=>alert(err.message));
+}
+
+function signupStep1(){
+  const email=document.getElementById('email').value;
+  const password=document.getElementById('password').value;
+  auth.createUserWithEmailAndPassword(email,password).then(cred=>{
+    db.collection('users').doc(cred.user.uid).set({
+      categories:{}, dailyExpenses:[], salary:0, incomeSources:0, loans:0, lastSalaryDate:null
+    });
+  }).catch(err=>alert(err.message));
+}
+
+function googleLogin(){
+  const provider=new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider);
+}
+
+function logout(){ auth.signOut(); }
+
+// ===== Tab Navigation =====
+document.querySelectorAll('.sidebar a[data-tab]').forEach(a=>{
+  a.addEventListener('click', e=>{
+    e.preventDefault();
+    document.querySelectorAll('.sidebar a').forEach(x=>x.classList.remove('active'));
+    a.classList.add('active');
+    const tab=a.dataset.tab;
+    document.querySelectorAll('.tabContent').forEach(tc=>tc.style.display='none');
+    document.getElementById(tab+'Tab').style.display='block';
+  });
 });
 
-/* =================== Pull user doc and render app =================== */
-async function pullAndRenderUser(uid){
-  try{
-    const doc = await db.collection('users').doc(uid).get();
-    if(!doc.exists){
-      // create default doc
-      await db.collection('users').doc(uid).set({
-        salary:0, incomeSources:0, loans:0, categories:{}, dailyExpenses:[]
-      }, { merge:true });
-      currentData = { salary:0, incomeSources:0, loans:0, categories:{}, dailyExpenses:[] };
-    } else {
-      currentData = doc.data();
-      currentData.salary = currentData.salary || 0;
-      currentData.incomeSources = currentData.incomeSources || 0;
-      currentData.loans = currentData.loans || 0;
-      currentData.categories = currentData.categories || {};
-      currentData.dailyExpenses = Array.isArray(currentData.dailyExpenses) ? currentData.dailyExpenses : [];
-    }
-
-    // fill sidebar user info
-    renderUserInfo();
-
-    // if missing essential info -> show setup UI
-    if(!currentData.salary || !currentData.categories || Object.keys(currentData.categories).length === 0){
-      renderSetupPanel(uid, currentData);
-    } else {
-      renderActiveTab('tab-daily'); // default to daily
-    }
-
-  }catch(err){
-    console.error(err);
-    contentArea.innerHTML = `<div class="card card-soft p-3 text-danger">حصل خطأ عند جلب بياناتك.</div>`;
-  }
-}
-
-/* =================== render user info in sidebar =================== */
-function renderUserInfo(){
-  userInfo.innerHTML = `
-    <div class="small-muted">المستخدم</div>
-    <div class="fw-bold mb-1">${auth.currentUser && auth.currentUser.email ? escapeHtml(auth.currentUser.email) : '—'}</div>
-    <div class="small-muted">راتب: <span class="fw-bold">${numberFormat(currentData.salary)} ر.ع</span></div>
-    <div class="small-muted">مدخرات/أقساط: <span class="fw-bold">${numberFormat(currentData.loans)} ر.ع</span></div>
-  `;
-}
-
-/* =================== Sidebar interactions =================== */
-navList.addEventListener('click', (e)=>{
-  const it = e.target.closest('.nav-item');
-  if(!it) return;
-  const tab = it.dataset.tab;
-  Array.from(navList.children).forEach(c=>c.classList.remove('active'));
-  it.classList.add('active');
-  renderActiveTab(tab);
-});
-
-/* logout */
-logoutBtn.addEventListener('click', ()=> {
-  if(confirm('تسجيل الخروج؟')) auth.signOut();
-});
-
-/* =================== Setup Panel =================== */
-function renderSetupPanel(uid, data){
-  contentArea.innerHTML = `
-    <div class="card card-soft">
-      <h4>إعداد الحساب الأولي</h4>
-      <div class="small-muted mb-3">أدخلي راتبك، الدخل الإضافي، القروض، ثم الأقسام والمبالغ.</div>
-
-      <div class="row g-2">
-        <div class="col-md-4"><label class="small-muted">الراتب الأساسي</label><input id="salaryInput" class="form-control" type="number" value="${data.salary || ''}"></div>
-        <div class="col-md-4"><label class="small-muted">دخل إضافي (اختياري)</label><input id="incomeInput" class="form-control" type="number" value="${data.incomeSources || ''}"></div>
-        <div class="col-md-4"><label class="small-muted">قروض/التزامات</label><input id="loansInput" class="form-control" type="number" value="${data.loans || ''}"></div>
-      </div>
-
-      <hr>
-
-      <h5 class="mt-2">الأقسام والمبالغ</h5>
-      <div id="setupCategories" class="mb-2"></div>
-      <div class="d-flex gap-2 mb-3">
-        <button id="addSetupCat" class="btn btn-outline-primary">➕ إضافة قسم</button>
-        <button id="clearSetupCats" class="btn btn-outline-secondary">🧹 مسح</button>
-      </div>
-
-      <div class="d-grid">
-        <button id="saveSetup" class="btn btn-primary">حفظ والبدء</button>
-      </div>
-    </div>
-  `;
-
-  const container = document.getElementById('setupCategories');
-
-  function addRow(name='', alloc=''){
-    const row = document.createElement('div');
-    row.className = 'd-flex gap-2 mb-2';
-    row.innerHTML = `
-      <input class="form-control cat-name" placeholder="اسم القسم" value="${escapeHtml(name)}">
-      <input class="form-control cat-alloc" type="number" placeholder="المبلغ" value="${alloc}">
-      <button class="btn btn-outline-danger btn-sm remove">✖</button>
-    `;
-    row.querySelector('.remove').onclick = ()=> row.remove();
-    container.appendChild(row);
-  }
-
-  // prefill from existing categories if any
-  if(data.categories && Object.keys(data.categories).length>0){
-    for(const [k,v] of Object.entries(data.categories)) addRow(k,v);
-  } else {
-    addRow('ادخار','0');
-    addRow('بترول','0');
-    addRow('اكل','0');
-  }
-
-  document.getElementById('addSetupCat').onclick = ()=> addRow();
-  document.getElementById('clearSetupCats').onclick = ()=> container.innerHTML = '';
-
-  document.getElementById('saveSetup').onclick = async ()=>{
-    const salary = parseFloat(document.getElementById('salaryInput').value) || 0;
-    const income = parseFloat(document.getElementById('incomeInput').value) || 0;
-    const loans = parseFloat(document.getElementById('loansInput').value) || 0;
-
-    const names = container.getElementsByClassName('cat-name');
-    const allocs = container.getElementsByClassName('cat-alloc');
-    const categories = {};
-    for(let i=0;i<names.length;i++){
-      const name = names[i].value.trim();
-      const alloc = parseFloat(allocs[i].value) || 0;
-      if(name) categories[name] = alloc;
-    }
-    if(Object.keys(categories).length === 0){ alert('أدخل قسم واحد على الأقل'); return; }
-
-    try{
-      await db.collection('users').doc(uid).set({
-        salary, incomeSources: income, loans, categories, dailyExpenses: []
-      }, { merge:true });
-      // refresh local copy
-      await pullAndRenderUser(uid);
-    }catch(err){
-      console.error(err); alert('حدث خطأ أثناء الحفظ');
-    }
-  };
-}
-
-/* =================== Render active tab =================== */
-function renderActiveTab(tabId){
-  if(tabId === 'tab-daily') renderDailyTab();
-  else if(tabId === 'tab-weekly') renderWeeklyTab();
-  else if(tabId === 'tab-pred') renderPredictionsTab();
-}
-
-/* =================== DAILY TAB =================== */
-function renderDailyTab(){
-  // build UI
-  contentArea.innerHTML = `
-    <div class="card card-soft">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h4 class="mb-0">المصاريف اليومية</h4>
-        <div class="small-muted">اختاري التاريخ ثم أدخلي المصروفات لكل قسم</div>
-      </div>
-
-      <div class="row g-2 align-items-end mb-2">
-        <div class="col-md-3">
-          <label class="small-muted">التاريخ</label>
-          <input id="expDate" type="date" class="form-control" value="${todayISO()}">
-        </div>
-        <div class="col-md-3">
-          <label class="small-muted">ملاحظة (اختياري)</label>
-          <input id="expNote" type="text" class="form-control" placeholder="مثلاً: غداء">
-        </div>
-        <div class="col-md-6 text-end">
-          <button id="saveDayBtn" class="btn btn-primary">حفظ المصروف اليومي</button>
-        </div>
-      </div>
-
-      <div id="dailyInputs" class="mb-2"></div>
-
-      <hr>
-
-      <div class="d-flex gap-2">
-        <div class="card card-soft p-3 flex-grow-1">
-          <div class="small-muted">إجمالي اليوم</div>
-          <div id="todayTotal" class="kpi">0 ر.ع</div>
-        </div>
-        <div class="card card-soft p-3" style="min-width:220px;">
-          <div class="small-muted">آخر يوم محفوظ</div>
-          <div id="lastSaved" class="muted">—</div>
-        </div>
-      </div>
-    </div>
-  `;
-
-  // populate inputs per category
-  const dailyInputs = document.getElementById('dailyInputs');
-  dailyInputs.innerHTML = '';
-  for(const cat of Object.keys(currentData.categories || {})){
-    const alloc = currentData.categories[cat] || 0;
-    const div = document.createElement('div');
-    div.className = 'd-flex gap-2 mb-2';
-    div.innerHTML = `
-      <div class="flex-grow-1">
-        <div class="category-name">${escapeHtml(cat)}</div>
-        <div class="small-muted">المخصص: ${formatNum(alloc)} ر.ع</div>
-      </div>
-      <div style="width:170px;">
-        <input type="number" class="form-control expense-input" data-cat="${escapeHtml(cat)}" data-limit="${alloc}" placeholder="0.00">
-      </div>
-    `;
-    dailyInputs.appendChild(div);
-  }
-
-  // today total update helper
-  function updateTodayTotal(){
-    const inputs = dailyInputs.getElementsByClassName('expense-input');
-    let total = 0;
-    for(let i=0;i<inputs.length;i++){
-      const v = parseFloat(inputs[i].value) || 0;
-      total += v;
-    }
-    document.getElementById('todayTotal').textContent = formatNum(total) + ' ر.ع';
-  }
-  // hook input events
-  dailyInputs.addEventListener('input', updateTodayTotal);
-
-  // save day
-  document.getElementById('saveDayBtn').onclick = async ()=>{
-    const date = document.getElementById('expDate').value || todayISO();
-    const note = document.getElementById('expNote').value || '';
-    const inputs = dailyInputs.getElementsByClassName('expense-input');
-    const expenses = {};
-    for(let i=0;i<inputs.length;i++){
-      const cat = inputs[i].dataset.cat;
-      const val = parseFloat(inputs[i].value) || 0;
-      expenses[cat] = val;
-      // mark over-limit style
-      const limit = parseFloat(inputs[i].dataset.limit) || 0;
-      if(limit && val > limit) inputs[i].classList.add('over-limit'); else inputs[i].classList.remove('over-limit');
-    }
-    // push to local then save to firestore
-    currentData.dailyExpenses = currentData.dailyExpenses || [];
-    currentData.dailyExpenses.push({ date, expenses, note });
-    try{
-      await db.collection('users').doc(currentUserId).set({ dailyExpenses: currentData.dailyExpenses }, { merge:true });
-      // feedback
-      document.getElementById('lastSaved').textContent = date + (note ? ' — ' + note : '');
-      // clear inputs after save
-      for(let i=0;i<inputs.length;i++) inputs[i].value = '';
-      updateTodayTotal();
-      // also refresh other tabs' content live
-      renderWeeklyTab(); // update weekly data
-      renderPredictionsTab(); // update predictions
-      alert('تم حفظ بيانات اليوم.');
-    }catch(err){
-      console.error(err);
-      alert('خطأ عند الحفظ');
-    }
-  };
-
-  // set last saved if exists
-  const last = (currentData.dailyExpenses||[]).slice(-1)[0];
-  document.getElementById('lastSaved').textContent = last ? (last.date + (last.note ? ' — ' + last.note : '')) : 'لا توجد بيانات محفوظة';
-}
-
-/* =================== WEEKLY TAB (no charts, tables & summary) =================== */
-function renderWeeklyTab(){
-  // compute last 7 days window (including today)
-  const last7 = getLastNDates(7); // array of ISO dates strings
-  // aggregate totals per category and per day
-  const categories = Object.keys(currentData.categories || {});
-  const dayTotals = {}; // date => total
-  const catTotals = {}; // cat => total in last7
-  categories.forEach(c=> catTotals[c]=0);
-  last7.forEach(d=> dayTotals[d]=0);
-
-  for(const dayObj of (currentData.dailyExpenses || [])){
-    if(last7.includes(dayObj.date)){
-      const daySum = Object.values(dayObj.expenses || {}).reduce((a,b)=> a + (b||0), 0);
-      dayTotals[dayObj.date] = (dayTotals[dayObj.date] || 0) + daySum;
-      for(const cat of categories){
-        const v = dayObj.expenses[cat] || 0;
-        catTotals[cat] = (catTotals[cat] || 0) + v;
-      }
-    }
-  }
-
-  // prepare HTML
-  let tableRows = '';
-  for(const cat of categories){
-    const alloc = currentData.categories[cat] || 0;
-    const spent = catTotals[cat] || 0;
-    const ratio = alloc ? (spent / alloc) : 0;
-    const status = ratio < 0.8 ? '✓' : (ratio <= 1 ? '⚠' : '✖');
-    tableRows += `
-      <tr>
-        <td>${escapeHtml(cat)}</td>
-        <td>${formatNum(alloc)}</td>
-        <td>${formatNum(spent)}</td>
-        <td>${status}</td>
-      </tr>
-    `;
-  }
-
-  // day totals rows
-  let dayRows = '';
-  for(const d of last7){
-    dayRows += `<tr><td>${d}</td><td>${formatNum(dayTotals[d]||0)}</td></tr>`;
-  }
-
-  contentArea.innerHTML = `
-    <div class="card card-soft">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h4 class="mb-0">التحليلات الأسبوعية</h4>
-        <div class="small-muted">آخر 7 أيام</div>
-      </div>
-
-      <div class="row g-3">
-        <div class="col-lg-6">
-          <div class="card-soft p-3 mb-3">
-            <div class="small-muted mb-2">مجموع المصاريف لكل فئة (آخر 7 أيام)</div>
-            <div style="max-height:260px; overflow:auto;">
-              <table class="table table-sm table-fixed mb-0">
-                <thead><tr><th>الفئة</th><th>مخصص</th><th>مصروف</th><th>حالة</th></tr></thead>
-                <tbody>${tableRows}</tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-lg-6">
-          <div class="card-soft p-3 mb-3">
-            <div class="small-muted mb-2">مجموع يومي (آخر 7 أيام)</div>
-            <div style="max-height:260px; overflow:auto;">
-              <table class="table table-sm mb-0">
-                <thead><tr><th>التاريخ</th><th>المجموع</th></tr></thead>
-                <tbody>${dayRows}</tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="small-muted">شرح الحالة: ✓ ضمن الحد (أقل من 80%) — ⚠ قريب من الحد — ✖ تجاوز الحد</div>
-    </div>
-  `;
-}
-
-/* =================== PREDICTIONS TAB (text-based, auto updates) =================== */
-function renderPredictionsTab(){
-  // compute per-category spent total and daily prediction for remainder of month
-  const categories = Object.keys(currentData.categories || {});
-  const spentTotals = {};
-  for(const cat of categories) spentTotals[cat] = 0;
-  for(const day of (currentData.dailyExpenses || [])){
-    for(const cat of categories) spentTotals[cat] += (day.expenses[cat] || 0);
-  }
-
-  const today = new Date();
-  const dayNum = today.getDate();
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
-  const remainingDays = Math.max(1, daysInMonth - dayNum);
-
-  let html = `
-    <div class="card card-soft">
-      <h4>التوقعات</h4>
-      <div class="small-muted mb-2">توقع الإنفاق لبقية الشهر واقتراحات ذكية</div>
-      <div class="row g-3">
-        <div class="col-md-8">
-          <div class="card-soft p-3">
-            <div id="predList"></div>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="card-soft p-3">
-            <div class="small-muted">ملخص سريع</div>
-            <div class="mt-2">
-              <div>إجمالي المصروف حتى الآن: <span class="fw-bold">${formatNum(totalSpentAll())} ر.ع</span></div>
-              <div class="mt-1">إجمالي المخصص: <span class="fw-bold">${formatNum(totalAllocated())} ر.ع</span></div>
-              <div class="mt-1">التبقى الكلي: <span class="fw-bold">${formatNum(totalAllocated()-totalSpentAll())} ر.ع</span></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-
-  contentArea.innerHTML = html;
-
-  // build predictions list
-  const predList = document.getElementById('predList');
-  predList.innerHTML = '';
-  for(const cat of categories){
-    const alloc = currentData.categories[cat] || 0;
-    const spent = spentTotals[cat] || 0;
-    const remaining = alloc - spent;
-    const dailyPred = remainingDays > 0 ? (remaining / remainingDays) : 0;
-    const tip = spent > alloc ? `🚨 تم تجاوز المخصص في ${escapeHtml(cat)} — قللي الإنفاق` :
-                (spent < alloc*0.5 ? `💡 فائض في ${escapeHtml(cat)} يمكن تحويله للادخار` : `✅ ضمن الحد في ${escapeHtml(cat)}`);
-    const row = document.createElement('div');
-    row.className = 'mb-2';
-    row.innerHTML = `
-      <div class="fw-bold">${escapeHtml(cat)}</div>
-      <div class="small-muted">مصروف حتى الآن: ${formatNum(spent)} — مخصص: ${formatNum(alloc)}</div>
-      <div class="mt-1">متوقع ${formatNum(Math.max(0,dailyPred))} ر.ع يومياً لبقية الشهر</div>
-      <div class="mt-1">${tip}</div>
-      <hr>
-    `;
-    predList.appendChild(row);
-  }
-
-  // helper totals
-  function totalSpentAll(){
-    return (currentData.dailyExpenses||[]).reduce((sum,d)=> sum + Object.values(d.expenses||{}).reduce((a,b)=>a+(b||0),0), 0);
-  }
-  function totalAllocated(){
-    return Object.values(currentData.categories||{}).reduce((a,b)=>a+(b||0),0);
-  }
-}
-
-/* =================== Utilities =================== */
-function formatNum(v){ return Number((Math.round(v*100)/100).toFixed(2)).toLocaleString('en-US'); }
-function escapeHtml(t){ return (t+'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function todayISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
-
-// return array of last N iso dates (N includes today) in ascending order
-function getLastNDates(n){
-  const arr = [];
-  for(let i = n-1; i >= 0; i--){
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    arr.push(d.toISOString().slice(0,10));
-  }
-  return arr;
-}
-
-/* =================== Live listening (optional) =================== */
-/* We can listen to user's doc to auto-refresh UI if Firestore doc changes externally */
-let unsubscribeListener = null;
-function setupRealtimeListener(uid){
-  if(unsubscribeListener) unsubscribeListener();
-  unsubscribeListener = db.collection('users').doc(uid).onSnapshot(docSnap=>{
-    if(docSnap.exists){
-      currentData = docSnap.data();
-      currentData.salary = currentData.salary || 0;
-      currentData.incomeSources = currentData.incomeSources || 0;
-      currentData.loans = currentData.loans || 0;
-      currentData.categories = currentData.categories || {};
-      currentData.dailyExpenses = Array.isArray(currentData.dailyExpenses) ? currentData.dailyExpenses : [];
-      renderUserInfo();
-      // keep currently active tab content updated (simple approach: re-render active tab)
-      const active = navList.querySelector('.nav-item.active');
-      if(active) renderActiveTab(active.dataset.tab);
-    }
-  }, err=> console.error('listener error', err));
-}
-
-/* after auth and initial fetch, start listening */
+// ===== Load User Data =====
 auth.onAuthStateChanged(user=>{
-  if(user) setupRealtimeListener(user.uid);
-  else if(unsubscribeListener){ unsubscribeListener(); unsubscribeListener = null; }
+  if(user){
+    authContainer.style.display='none';
+    app.style.display='block';
+    loadUserData(user.uid);
+  } else{
+    authContainer.style.display='block';
+    app.style.display='none';
+    showLogin();
+  }
 });
 
+async function loadUserData(uid){
+  const docSnap = await db.collection('users').doc(uid).get();
+  if(!docSnap.exists){ alert("خطأ: البيانات غير موجودة"); return; }
+  const data=docSnap.data();
+
+  // إذا لم يدخل بياناته الأولية
+  if(!data.salary || Object.keys(data.categories).length===0){
+    renderInitialSetup(uid, data);
+    return;
+  }
+
+  renderDailyTab(data, uid);
+  renderWeeklyTab(data);
+  renderPredictionsTab(data);
+  renderAccountTab(data, uid);
+}
+
+// ===== Initial Setup =====
+function renderInitialSetup(uid, data){
+  const container=document.getElementById('dailyTab');
+  container.innerHTML=`
+    <div class="card card-royal mx-auto" style="max-width:500px;">
+      <h5>الخطوة 1: بيانات الراتب والدخل</h5>
+      <input type="number" id="salaryInput" class="form-control mb-2" placeholder="راتبك الأساسي" value="${data.salary||''}">
+      <input type="number" id="incomeInput" class="form-control mb-2" placeholder="مصادر دخل أخرى (اختياري)" value="${data.incomeSources||''}">
+      <input type="number" id="loansInput" class="form-control mb-2" placeholder="أي قروض أو التزامات" value="${data.loans||''}">
+      <h5 class="mt-3">الخطوة 2: الأقسام والمبالغ</h5>
+      <div id="userCategoriesContainer"></div>
+      <button id="addCategoryBtn" class="btn btn-outline-primary mb-2 w-100">إضافة قسم</button>
+      <button id="saveSetupBtn" class="btn btn-main mt-2 w-100">حفظ البيانات</button>
+    </div>
+  `;
+  const userCategoriesContainer=document.getElementById('userCategoriesContainer');
+  function addCategoryRow(name="",alloc=""){
+    const div=document.createElement('div');
+    div.className="d-flex gap-2 mb-2";
+    div.innerHTML=`<input type="text" class="form-control category-name-input" placeholder="اسم القسم" value="${name}">
+      <input type="number" class="form-control category-alloc-input" placeholder="المبلغ" value="${alloc}">`;
+    userCategoriesContainer.appendChild(div);
+  }
+  for(let i=0;i<3;i++) addCategoryRow();
+  document.getElementById('addCategoryBtn').onclick=()=> addCategoryRow();
+  document.getElementById('saveSetupBtn').onclick=async ()=>{
+    const salary=parseFloat(document.getElementById('salaryInput').value)||0;
+    const income=parseFloat(document.getElementById('incomeInput').value)||0;
+    const loans=parseFloat(document.getElementById('loansInput').value)||0;
+    const nameInputs=document.getElementsByClassName('category-name-input');
+    const allocInputs=document.getElementsByClassName('category-alloc-input');
+    let categoriesObj={};
+    for(let i=0;i<nameInputs.length;i++){
+      const name=nameInputs[i].value.trim();
+      const alloc=parseFloat(allocInputs[i].value)||0;
+      if(name) categoriesObj[name]=alloc;
+    }
+    if(Object.keys(categoriesObj).length===0){ alert("الرجاء إدخال قسم واحد على الأقل"); return; }
+    await db.collection('users').doc(uid).update({
+      salary:salary,
+      incomeSources:income,
+      loans:loans,
+      categories:categoriesObj,
+      dailyExpenses:[],
+      lastSalaryDate:null
+    });
+    loadUserData(uid);
+  };
+}
+
+// ===== Tabs =====
+function renderDailyTab(data, uid){
+  const container=document.getElementById('dailyTab');
+  container.innerHTML=`
+    <div class="card card-royal">
+      <h5>المصاريف اليومية</h5>
+      <label>اختر التاريخ:</label>
+      <input type="date" id="expenseDate" class="form-control mb-2" value="${new Date().toISOString().split('T')[0]}">
+      <div id="expenseInputs"></div>
+      <button id="addExpenseBtn" class="btn btn-outline-primary mb-2">حفظ المصروفات</button>
+      <button id="newCycleBtn" class="btn btn-main mb-2">ابدئي دورة راتب جديدة</button>
+    </div>
+  `;
+  const expenseInputs=document.getElementById('expenseInputs');
+  for(const cat in data.categories){
+    const div=document.createElement('div');
+    div.className="d-flex gap-2 mb-2";
+    div.innerHTML=`<span class="category-name w-50">${cat}</span>
+      <input type="number" class="form-control w-50 expense-input" placeholder="المصروف" data-cat="${cat}" data-limit="${data.categories[cat]}">`;
+    expenseInputs.appendChild(div);
+  }
+  document.getElementById('addExpenseBtn').onclick=async ()=>{
+    const date=document.getElementById('expenseDate').value;
+    const newExpenses={};
+    Array.from(document.getElementsByClassName('expense-input')).forEach(inp=>{
+      const cat=inp.dataset.cat;
+      const val=parseFloat(inp.value)||0;
+      newExpenses[cat]=val;
+    });
+    data.dailyExpenses.push({date,expenses:newExpenses});
+    await db.collection('users').doc(uid).update({dailyExpenses:data.dailyExpenses});
+    alert("تم حفظ المصروفات!");
+  };
+  document.getElementById('newCycleBtn').onclick=async ()=>{
+    if(confirm("هل تريد بدء دورة راتب جديدة؟ سيتم حذف المصروفات السابقة.")){
+      await db.collection('users').doc(uid).update({dailyExpenses:[], lastSalaryDate:new Date().toISOString().split('T')[0]});
+      loadUserData(uid);
+    }
+  };
+}
+
+// ===== Weekly Tab =====
+function renderWeeklyTab(data){
+  const container=document.getElementById('weeklyTab');
+  container.innerHTML=`
+    <div class="card card-royal">
+      <h5>التحليلات الأسبوعية</h5>
+      <div id="weeklyTable"></div>
+    </div>
+  `;
+  const table=document.createElement('table');
+  table.className="table table-bordered";
+  let html=`<tr><th>القسم</th>`;
+  // الأيام من آخر 7 أيام
+  const days=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date();
+    d.setDate(d.getDate()-i);
+    days.push(d.toISOString().split('T')[0]);
+    html+=`<th>${d.getDate()}/${d.getMonth()+1}</th>`;
+  }
+  html+=`</tr>`;
+  for(const cat in data.categories){
+    html+=`<tr><td>${cat}</td>`;
+    for(const day of days){
+      const dayData=data.dailyExpenses.find(d=>d.date===day);
+      html+=`<td>${dayData?dayData.expenses[cat]||0:0}</td>`;
+    }
+    html+=`</tr>`;
+  }
+  table.innerHTML=html;
+  document.getElementById('weeklyTable').appendChild(table);
+}
+
+// ===== Predictions Tab =====
+function renderPredictionsTab(data){
+  const container=document.getElementById('predictionsTab');
+  container.innerHTML=`
+    <div class="card card-royal">
+      <h5>التوقعات لبقية الشهر</h5>
+      <div id="predictionsContainer"></div>
+    </div>
+  `;
+  const pc=document.getElementById('predictionsContainer');
+  const today=new Date().getDate();
+  const daysInMonth=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();
+  for(const cat in data.categories){
+    const spent=data.dailyExpenses.reduce((sum,d)=>sum+(d.expenses[cat]||0),0);
+    const remaining=data.categories[cat]-spent;
+    const dailyPrediction=remaining/(daysInMonth-today);
+    pc.innerHTML+=`<div>${cat}: ${dailyPrediction.toFixed(2)} ريال يومياً متوقع</div>`;
+  }
+}
+
+// ===== Account Tab =====
+function renderAccountTab(data, uid){
+  const container=document.getElementById('accountTab');
+  container.innerHTML=`
+    <div class="card card-royal">
+      <h5>تعديل بياناتك</h5>
+      <input type="number" id="salaryEdit" class="form-control mb-2" value="${data.salary}" placeholder="راتبك">
+      <input type="number" id="loansEdit" class="form-control mb-2" value="${data.loans}" placeholder="قروضك">
+      <h6>الأقسام</h6>
+      <div id="editCategoriesContainer"></div>
+      <button id="addEditCategoryBtn" class="btn btn-outline-primary mb-2 w-100">إضافة قسم</button>
+      <button id="saveAccountBtn" class="btn btn-main w-100">حفظ التعديلات</button>
+    </div>
+  `;
+  const editContainer=document.getElementById('editCategoriesContainer');
+  function addEditRow(name="",alloc=""){
+    const div=document.createElement('div');
+    div.className="d-flex gap-2 mb-2";
+    div.innerHTML=`<input type="text" class="form-control category-name-input" value="${name}">
+      <input type="number" class="form-control category-alloc-input" value="${alloc}">`;
+    editContainer.appendChild(div);
+  }
+  for(const cat in data.categories) addEditRow(cat,data.categories[cat]);
+  document.getElementById('addEditCategoryBtn').onclick=()=> addEditRow();
+  document.getElementById('saveAccountBtn').onclick=async ()=>{
+    const salary=parseFloat(document.getElementById('salaryEdit').value)||0;
+    const loans=parseFloat(document.getElementById('loansEdit').value)||0;
+    const names=document.getElementsByClassName('category-name-input');
+    const allocs=document.getElementsByClassName('category-alloc-input');
+    const categories={};
+    for(let i=0;i<names.length;i++){
+      const name=names[i].value.trim();
+      const alloc=parseFloat(allocs[i].value)||0;
+      if(name) categories[name]=alloc;
+    }
+    await db.collection('users').doc(uid).update({salary,loans,categories});
+    alert("تم تحديث البيانات!");
+    loadUserData(uid);
+  };
+}
 </script>
 </body>
 </html>
