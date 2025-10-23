@@ -17,14 +17,12 @@
   --card-shadow:0 6px 18px rgba(0,0,128,0.1);
   --accent-text:#2c003e;
 }
-
 body{
   margin:0;
   font-family:"Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   background: var(--light-gray);
   color: var(--accent-text);
 }
-
 #authContainer{
   max-width:400px;
   margin:100px auto;
@@ -33,7 +31,6 @@ body{
   border-radius:16px;
   box-shadow:var(--card-shadow);
 }
-
 .btn-main{
   background: var(--main-blue);
   color:#fff;
@@ -42,7 +39,6 @@ body{
 .btn-main:hover{
   background:#5a82ff;
 }
-
 .card-royal{
   background:#fff;
   border:none;
@@ -51,14 +47,11 @@ body{
   margin-bottom:20px;
   box-shadow:var(--card-shadow);
 }
-
 input:focus, .form-control:focus{
   box-shadow:none;
   border-color: var(--main-blue);
 }
-
 input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
-
 .tabContent{display:none; padding-top:10px;}
 .cards-grid{display:flex; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap;}
 .card-grid-item{
@@ -306,37 +299,36 @@ function renderDailyTab(data, uid){
   };
 }
 
-// ===== Weekly Tab =====
+// ===== Weekly Tab (مرتب بطاقات) =====
 function renderWeeklyTab(data){
   const container=document.getElementById('weeklyTab');
   container.style.display='block';
   container.innerHTML=`
-    <div class="card card-royal">
-      <h5>التحليلات الأسبوعية</h5>
-      <div id="weeklyTable"></div>
-    </div>
+    <h5 class="mb-3">التحليلات الأسبوعية</h5>
+    <div class="cards-grid" id="weeklyCards"></div>
   `;
-  const table=document.createElement('table');
-  table.className="table table-bordered";
-  let html=`<tr><th>القسم</th>`;
+  const cardsContainer=document.getElementById('weeklyCards');
+
   const days=[];
   for(let i=6;i>=0;i--){
     const d=new Date();
     d.setDate(d.getDate()-i);
     days.push(d.toISOString().split('T')[0]);
-    html+=`<th>${d.getDate()}/${d.getMonth()+1}</th>`;
   }
-  html+=`</tr>`;
+
   for(const cat in data.categories){
-    html+=`<tr><td>${cat}</td>`;
+    const card=document.createElement('div');
+    card.className="card-grid-item";
+    let innerHTML=`<div class="mb-2"><strong>${cat}</strong></div><div class="d-flex justify-content-between flex-wrap">`;
     for(const day of days){
       const dayData=data.dailyExpenses.find(d=>d.date===day);
-      html+=`<td>${dayData?dayData.expenses[cat]||0:0}</td>`;
+      const val=dayData ? dayData.expenses[cat]||0 : 0;
+      innerHTML+=`<div style="flex:1 1 12%; margin:2px; padding:6px 0; background:#f0f0f0; border-radius:8px; font-size:14px;">${val}</div>`;
     }
-    html+=`</tr>`;
+    innerHTML+="</div>";
+    card.innerHTML=innerHTML;
+    cardsContainer.appendChild(card);
   }
-  table.innerHTML=html;
-  document.getElementById('weeklyTable').appendChild(table);
 }
 
 // ===== Predictions Tab =====
@@ -402,5 +394,6 @@ function renderAccountTab(data, uid){
   };
 }
 </script>
+
 </body>
 </html>
