@@ -40,7 +40,7 @@ body{
   padding:20px;
   margin-bottom:20px;
 }
-.tabContent{ display:none; }
+.tabContent{ display:none; margin-top:20px; }
 input:focus, .form-control:focus{ box-shadow:none; border-color:var(--main-blue);}
 input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
 .cards-grid{
@@ -59,6 +59,10 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   transition:0.2s;
 }
 .card-grid-item:hover{ transform:translateY(-3px); box-shadow:0 10px 20px rgba(0,0,128,0.15);}
+.category-name{font-weight:bold; line-height:38px;}
+@media(max-width:768px){
+  .cards-grid{grid-template-columns:1fr 1fr;}
+}
 </style>
 </head>
 <body>
@@ -138,6 +142,7 @@ document.addEventListener('click', e=>{
     const tab=e.target.dataset.tab;
     document.querySelectorAll('.tabContent').forEach(tc=>tc.style.display='none');
     document.getElementById(tab).style.display='block';
+    window.scrollTo({ top:0, behavior:'smooth' });
   }
 });
 
@@ -221,10 +226,143 @@ function renderInitialSetup(uid, data){
   };
 }
 
-// ===== باقي التابات (اليومي، الأسبوعي، التوقعات، الحساب) =====
-// استخدمي نفس الدوال renderDailyTab, renderWeeklyTab, renderPredictionsTab, renderAccountTab
-// من الكود السابق مع الحفاظ على التصميم الجديد (card-royal داخل TabContent)
+// ===== Daily Tab =====
+function renderDailyTab(data, uid){
+  const container=document.getElementById('dailyTab');
+  container.style.display='block';
+  container.innerHTML=`
+    <div class="card card-royal">
+      <h5>المصاريف اليومية</h5>
+      <label>اختر التاريخ:</label>
+      <input type="date" id="expenseDate" class="form-control mb-2" value="${new Date().toISOString().split('T')[0]}">
+      <div id="expenseInputs"></div>
+      <button id="addExpenseBtn" class="btn btn-main mb-2">حفظ المصروفات</button>
+      <button id="newCycleBtn" class="btn btn-outline-primary mb-2">ابدئي دورة راتب جديدة</button>
+    </div>
+  `;
+  const expenseInputs=document.getElementById('expenseInputs');
+  for(const cat in data.categories){
+    const div=document.createElement('div');
+    div.className="d-flex gap-2 mb-2";
+    div.innerHTML=`<span class="category-name w-50">${cat}</span>
+      <input type="number" class="form-control w-50 expense-input" placeholder="المصروف" data-cat="${cat}" data-limit="${data.categories[cat]}">`;
+    expenseInputs.appendChild(div);
+  }
+  document.getElementById('addExpenseBtn').onclick=async ()=>{
+    const date=document.getElementById('expenseDate').value;
+    const newExpenses={};
+    Array.from(document.getElementsByClassName('expense-input')).forEach(inp=>{
+      const cat=inp.dataset.cat;
+      const val=parseFloat(inp.value)||0;
+      newExpenses[cat]=val;
+    });
+    data.dailyExpenses.push({date,expenses:newExpenses});
+    await db.collection('users').doc(uid).update({dailyExpenses:data.dailyExpenses});
+    alert("تم حفظ المصروفات!");
+  };
+  document.getElementById('newCycleBtn').onclick=async ()=>{
+    if(confirm("هل تريد بدء دورة راتب جديدة؟ سيتم حذف المصروفات السابقة.")){
+      await db.collection('users').doc(uid).update({dailyExpenses:[], lastSalaryDate:new Date().toISOString().split('T')[0]});
+      loadUserData(uid);
+    }
+  };
+}
 
+// ===== Weekly Tab =====
+function renderWeeklyTab(data){
+  const container=document.getElementById('weeklyTab');
+  container.style.display='block';
+  container.innerHTML=`
+    <div class="card card-royal">
+      <h5>التحليلات الأسبوعية</h5>
+      <div id="weeklyTable"></div>
+    </div>
+  `;
+  const table=document.createElement('table');
+  table.className="table table-bordered";
+  let html=`<tr><th>القسم</th>`;
+  const days=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date();
+    d.setDate(d.getDate()-i);
+    days.push(d.toISOString().split('T')[0]);
+    html+=`<th>${d.getDate()}/${d.getMonth()+1}</th>`;
+  }
+  html+=`</tr>`;
+  for(const cat in data.categories){
+    html+=`<tr><td>${cat}</td>`;
+    for(const day of days){
+      const dayData=data.dailyExpenses.find(d=>d.date===day);
+      html+=`<td>${dayData?dayData.expenses[cat]||0:0}</td>`;
+    }
+    html+=`</tr>`;
+  }
+  table.innerHTML=html;
+  document.getElementById('weeklyTable').appendChild(table);
+}
+
+// ===== Predictions Tab =====
+function renderPredictionsTab(data){
+  const container=document.getElementById('predictionsTab');
+  container.style.display='block';
+  container.innerHTML=`
+    <div class="card card-royal">
+      <h5>التوقعات لبقية الشهر</h5>
+      <div id="predictionsContainer"></div>
+    </div>
+  `;
+  const pc=document.getElementById('predictionsContainer');
+  const today=new Date().getDate();
+  const daysInMonth=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();
+  for(const cat in data.categories){
+    const spent=data.dailyExpenses.reduce((sum,d)=>sum+(d.expenses[cat]||0),0);
+    const remaining=data.categories[cat]-spent;
+    const dailyPrediction=remaining/(daysInMonth-today);
+    pc.innerHTML+=`<div>${cat}: ${dailyPrediction.toFixed(2)} ريال يومياً متوقع</div>`;
+  }
+}
+
+// ===== Account Tab =====
+function renderAccountTab(data, uid){
+  const container=document.getElementById('accountTab');
+  container.style.display='block';
+  container.innerHTML=`
+    <div class="card card-royal">
+      <h5>تعديل بياناتك</h5>
+      <input type="number" id="salaryEdit" class="form-control mb-2" value="${data.salary}" placeholder="راتبك">
+      <input type="number" id="loansEdit" class="form-control mb-2" value="${data.loans}" placeholder="قروضك">
+      <h6>الأقسام</h6>
+      <div id="editCategoriesContainer"></div>
+      <button id="addEditCategoryBtn" class="btn btn-outline-primary mb-2 w-100">إضافة قسم</button>
+      <button id="saveAccountBtn" class="btn btn-main w-100">حفظ التعديلات</button>
+    </div>
+  `;
+  const editContainer=document.getElementById('editCategoriesContainer');
+  function addEditRow(name="",alloc=""){
+    const div=document.createElement('div');
+    div.className="d-flex gap-2 mb-2";
+    div.innerHTML=`<input type="text" class="form-control category-name-input" value="${name}">
+      <input type="number" class="form-control category-alloc-input" value="${alloc}">`;
+    editContainer.appendChild(div);
+  }
+  for(const cat in data.categories) addEditRow(cat,data.categories[cat]);
+  document.getElementById('addEditCategoryBtn').onclick=()=> addEditRow();
+  document.getElementById('saveAccountBtn').onclick=async ()=>{
+    const salary=parseFloat(document.getElementById('salaryEdit').value)||0;
+    const loans=parseFloat(document.getElementById('loansEdit').value)||0;
+    const names=document.getElementsByClassName('category-name-input');
+    const allocs=document.getElementsByClassName('category-alloc-input');
+    const categories={};
+    for(let i=0;i<names.length;i++){
+      const name=names[i].value.trim();
+      const alloc=parseFloat(allocs[i].value)||0;
+      if(name) categories[name]=alloc;
+    }
+    await db.collection('users').doc(uid).update({salary,loans,categories});
+    alert("تم تحديث البيانات!");
+    loadUserData(uid);
+  };
+}
 </script>
 </body>
 </html>
