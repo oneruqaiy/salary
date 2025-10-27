@@ -350,7 +350,6 @@ function renderWeeklyTab(data){
         <div style="flex:1">${e.amount} ريال</div>
         <div style="flex:1">باقي: ${remaining} ريال</div>
         <div class="expense-actions">
-          <button class="btn btn-outline-primary btn-sm" onclick="editExpense('${e.date}','${e.cat}',${i})">تعديل</button>
           <button class="btn btn-outline-danger btn-sm" onclick="deleteExpense('${e.date}','${e.cat}',${i})">حذف</button>
         </div>
       `;
@@ -447,6 +446,7 @@ function renderAccountTab(data, uid){
 
 </body>
 </html>
+
 
 
 
