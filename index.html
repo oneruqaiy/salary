@@ -53,17 +53,6 @@ input:focus, .form-control:focus{
 }
 input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
 .tabContent{display:none; padding-top:10px;}
-.cards-grid{display:flex; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap;}
-.card-grid-item{
-  flex:1 1 45%;
-  background:#fff;
-  border-radius:16px;
-  padding:20px;
-  margin:5px;
-  text-align:center;
-  box-shadow:var(--card-shadow);
-}
-.category-name{font-weight:bold; line-height:38px;}
 .bottom-nav{
   position:fixed;
   bottom:0;
@@ -129,7 +118,7 @@ function showLogin(){
     <input type="email" id="email" class="form-control mb-2" placeholder="البريد الإلكتروني">
     <input type="password" id="password" class="form-control mb-2" placeholder="كلمة المرور">
     <button class="btn btn-main w-100 mb-2" onclick="login()">تسجيل الدخول</button>
-    <button class="btn btn-outline-primary w-100 mb-2" onclick="signupStep1()">إنشاء حساب</button>
+    <button class="btn btn-outline-primary w-100 mb-2" onclick="signup()">إنشاء حساب</button>
   `;
 }
 function login(){
@@ -137,7 +126,7 @@ function login(){
   const password=document.getElementById('password').value;
   auth.signInWithEmailAndPassword(email,password).catch(err=>alert(err.message));
 }
-function signupStep1(){
+function signup(){
   const email=document.getElementById('email').value;
   const password=document.getElementById('password').value;
   auth.createUserWithEmailAndPassword(email,password).then(cred=>{
@@ -146,7 +135,7 @@ function signupStep1(){
     });
   }).catch(err=>alert(err.message));
 }
-function logout(){ auth.signOut(); }
+function logout(){auth.signOut();}
 
 // ===== Bottom Navigation =====
 document.querySelectorAll('.bottom-nav div[data-tab]').forEach(btn=>{
@@ -158,69 +147,67 @@ document.querySelectorAll('.bottom-nav div[data-tab]').forEach(btn=>{
   });
 });
 
-// ===== Load User =====
+// ===== Auth State =====
 auth.onAuthStateChanged(user=>{
   if(user){
     authContainer.style.display='none';
     app.style.display='block';
     welcomeUser.textContent=`أهلاً، ${user.email} 👋`;
     loadUserData(user.uid);
-  } else{
+  }else{
     authContainer.style.display='block';
     app.style.display='none';
     showLogin();
   }
 });
 
-// ===== Load Data =====
+// ===== Load User Data =====
 async function loadUserData(uid){
-  const docSnap = await db.collection('users').doc(uid).get();
-  if(!docSnap.exists) return;
+  const docSnap=await db.collection('users').doc(uid).get();
+  if(!docSnap.exists)return;
   const data=docSnap.data();
-  renderDailyTab(data, uid);
+  renderDailyTab(data,uid);
   renderWeeklyTab(data);
-  renderAccountTab(data, uid);
+  renderAccountTab(data,uid);
   document.querySelector('.bottom-nav div[data-tab="dailyTab"]').click();
 }
 
 // ===== Daily Tab =====
-function renderDailyTab(data, uid){
+function renderDailyTab(data,uid){
   const container=document.getElementById('dailyTab');
   container.innerHTML=`
-    <div class="card card-royal">
-      <h5>تسجيل المصاريف اليومية</h5>
-      <input type="date" id="expenseDate" class="form-control mb-2" value="${new Date().toISOString().split('T')[0]}">
-      <select id="expenseCategory" class="form-control mb-2">
-        ${Object.keys(data.categories).map(c=>`<option>${c}</option>`).join('')}
-      </select>
-      <input type="number" id="expenseAmount" class="form-control mb-2" placeholder="المبلغ">
-      <input type="text" id="expenseDesc" class="form-control mb-2" placeholder="وصف الصرف (مثلاً: مطعم، قهوة)">
-      <button id="saveExpenseBtn" class="btn btn-main w-100 mb-3">حفظ المصروف</button>
-      <div id="expensesList"></div>
-    </div>
-  `;
-
-  document.getElementById('saveExpenseBtn').onclick=async()=>{
-    const date=document.getElementById('expenseDate').value;
-    const cat=document.getElementById('expenseCategory').value;
-    const amt=parseFloat(document.getElementById('expenseAmount').value)||0;
-    const desc=document.getElementById('expenseDesc').value;
-    if(!amt){alert("الرجاء إدخال المبلغ"); return;}
-    const newExp={id:Date.now(),date,cat,amt,desc};
-    const updated=[...(data.dailyExpenses||[]),newExp];
+  <div class="card card-royal">
+    <h5>تسجيل المصاريف اليومية</h5>
+    <input type="date" id="expDate" class="form-control mb-2" value="${new Date().toISOString().split('T')[0]}">
+    <select id="expCat" class="form-control mb-2">
+      ${Object.keys(data.categories).map(c=>`<option>${c}</option>`).join('')}
+    </select>
+    <input type="number" id="expAmt" class="form-control mb-2" placeholder="المبلغ">
+    <input type="text" id="expDesc" class="form-control mb-2" placeholder="وصف الصرف (مثلاً: مطعم)">
+    <button class="btn btn-main w-100 mb-3" id="saveExpBtn">حفظ المصروف</button>
+    <div id="expensesList"></div>
+  </div>`;
+  document.getElementById('saveExpBtn').onclick=async()=>{
+    const date=document.getElementById('expDate').value;
+    const cat=document.getElementById('expCat').value;
+    const amt=parseFloat(document.getElementById('expAmt').value)||0;
+    const desc=document.getElementById('expDesc').value;
+    if(!amt)return alert("أدخل المبلغ");
+    const newE={id:Date.now(),date,cat,amt,desc};
+    const updated=[...(data.dailyExpenses||[]),newE];
     await db.collection('users').doc(uid).update({dailyExpenses:updated});
     loadUserData(uid);
   };
-  renderExpensesList(data.dailyExpenses, data, uid);
+  renderExpensesList(data.dailyExpenses,data,uid);
 }
 
-// === عرض قائمة المصروفات مع التعديل والحذف ===
+// === قائمة المصروفات (مع تعديل وحذف)
 function renderExpensesList(expenses,data,uid){
   const list=document.getElementById('expensesList');
   if(!expenses||expenses.length===0){list.innerHTML="<p>لا توجد مصاريف بعد</p>";return;}
-  let totalSpent=0;
+  let total=0;
   list.innerHTML=expenses.map(e=>{
-    totalSpent+=e.amt;
+    total+=e.amt;
     return `
       <div class="d-flex justify-content-between align-items-center border-bottom py-2">
         <div>
@@ -234,98 +221,94 @@ function renderExpensesList(expenses,data,uid){
       </div>
     `;
   }).join('');
-  const totalRem=Object.values(data.categories).reduce((a,b)=>a+b,0)-totalSpent;
-  list.innerHTML+=`<div class="mt-3"><strong>إجمالي المصروفات:</strong> ${totalSpent} ريال<br><strong>المتبقي:</strong> ${totalRem} ريال</div>`;
+  const rem=Object.values(data.categories).reduce((a,b)=>a+b,0)-total;
+  list.innerHTML+=`<div class="mt-3"><strong>الإجمالي:</strong> ${total} ريال<br><strong>المتبقي:</strong> ${rem} ريال</div>`;
 }
 
-// === تعديل مصروف ===
+// === تعديل مصروف
 async function editExpense(id,uid){
-  const userRef=db.collection('users').doc(uid);
-  const doc=await userRef.get();
+  const ref=db.collection('users').doc(uid);
+  const doc=await ref.get();
   const data=doc.data();
   const exp=data.dailyExpenses.find(e=>e.id===id);
-  const newAmt=prompt("المبلغ الجديد:", exp.amt);
-  if(newAmt===null) return;
-  const newDesc=prompt("الوصف الجديد:", exp.desc);
+  const newAmt=prompt("المبلغ الجديد:",exp.amt);
+  if(newAmt===null)return;
+  const newDesc=prompt("الوصف الجديد:",exp.desc);
   exp.amt=parseFloat(newAmt)||exp.amt;
   exp.desc=newDesc;
-  await userRef.update({dailyExpenses:data.dailyExpenses});
+  await ref.update({dailyExpenses:data.dailyExpenses});
   loadUserData(uid);
 }
 
-// === حذف مصروف ===
+// === حذف مصروف
 async function deleteExpense(id,uid){
-  if(!confirm("هل أنت متأكد من الحذف؟")) return;
-  const userRef=db.collection('users').doc(uid);
-  const doc=await userRef.get();
+  if(!confirm("هل تريد حذف هذا المصروف؟"))return;
+  const ref=db.collection('users').doc(uid);
+  const doc=await ref.get();
   const data=doc.data();
   const updated=data.dailyExpenses.filter(e=>e.id!==id);
-  await userRef.update({dailyExpenses:updated});
+  await ref.update({dailyExpenses:updated});
   loadUserData(uid);
 }
 
 // ===== Weekly Tab =====
 function renderWeeklyTab(data){
-  const container=document.getElementById('weeklyTab');
-  container.innerHTML=`<h5 class="mb-3">التحليلات الأسبوعية</h5>`;
-  if(!data.dailyExpenses||data.dailyExpenses.length===0){container.innerHTML+="<p>لا توجد بيانات بعد</p>";return;}
+  const c=document.getElementById('weeklyTab');
+  c.innerHTML=`<h5 class="mb-3">التحليلات الأسبوعية</h5>`;
+  if(!data.dailyExpenses||data.dailyExpenses.length===0){c.innerHTML+="<p>لا توجد بيانات</p>";return;}
   const now=new Date();
-  const weekAgo=new Date(now.getTime()-(7*24*60*60*1000));
-  const weekExpenses=data.dailyExpenses.filter(e=>new Date(e.date)>=weekAgo);
-  const grouped={};
-  weekExpenses.forEach(e=>{
-    if(!grouped[e.cat]) grouped[e.cat]=[];
-    grouped[e.cat].push(e);
+  const weekAgo=new Date(now.getTime()-7*24*60*60*1000);
+  const week=data.dailyExpenses.filter(e=>new Date(e.date)>=weekAgo);
+  const group={};
+  let total=0;
+  week.forEach(e=>{
+    if(!group[e.cat])group[e.cat]=[];
+    group[e.cat].push(e);
   });
-  let totalWeek=0;
-  for(const cat in grouped){
+  for(const cat in group){
     let sum=0;
-    const rows=grouped[cat].map(e=>{
-      sum+=e.amt;
-      totalWeek+=e.amt;
-      const remaining=data.categories[cat]-sum;
-      return `<tr><td>${e.date}</td><td>${e.desc||'-'}</td><td>${e.amt}</td><td>${cat}</td><td>${remaining}</td></tr>`;
+    const rows=group[cat].map(e=>{
+      sum+=e.amt; total+=e.amt;
+      const remain=data.categories[cat]-sum;
+      return `<tr><td>${e.date}</td><td>${e.desc||'-'}</td><td>${e.amt}</td><td>${remain}</td></tr>`;
     }).join('');
-    container.innerHTML+=`
+    c.innerHTML+=`
       <div class="card card-royal">
         <h6>${cat}</h6>
         <table class="table table-sm">
-          <thead><tr><th>التاريخ</th><th>الوصف</th><th>المبلغ</th><th>القسم</th><th>المتبقي</th></tr></thead>
+          <thead><tr><th>التاريخ</th><th>الوصف</th><th>المبلغ</th><th>المتبقي</th></tr></thead>
           <tbody>${rows}</tbody>
-          <tfoot><tr><td colspan="5"><strong>إجمالي القسم:</strong> ${sum} ريال</td></tr></tfoot>
+          <tfoot><tr><td colspan="4"><strong>إجمالي القسم:</strong> ${sum} ريال</td></tr></tfoot>
         </table>
-      </div>
-    `;
+      </div>`;
   }
-  container.innerHTML+=`<div class="alert alert-info mt-3"><strong>إجمالي مصاريف الأسبوع:</strong> ${totalWeek} ريال</div>`;
+  c.innerHTML+=`<div class="alert alert-info mt-3"><strong>إجمالي مصاريف الأسبوع:</strong> ${total} ريال</div>`;
 }
 
 // ===== Account Tab =====
-function renderAccountTab(data, uid){
-  const container=document.getElementById('accountTab');
-  container.innerHTML=`
-    <div class="card card-royal">
-      <h5>تعديل بياناتك</h5>
-      <input type="number" id="salaryEdit" class="form-control mb-2" value="${data.salary}" placeholder="الراتب">
-      <div id="editCategories"></div>
-      <button id="addCategoryBtn" class="btn btn-outline-primary mb-2 w-100">إضافة قسم</button>
-      <button id="saveAccountBtn" class="btn btn-main w-100">حفظ التعديلات</button>
-    </div>
-  `;
-  const editC=document.getElementById('editCategories');
-  function addRow(name="",val=""){
-    const div=document.createElement('div');
-    div.className="d-flex gap-2 mb-2";
-    div.innerHTML=`<input type="text" class="form-control catName" value="${name}" placeholder="القسم">
-    <input type="number" class="form-control catVal" value="${val}" placeholder="المبلغ">`;
-    editC.appendChild(div);
+function renderAccountTab(data,uid){
+  const c=document.getElementById('accountTab');
+  c.innerHTML=`
+  <div class="card card-royal">
+    <h5>تعديل بياناتك</h5>
+    <input type="number" id="salaryEdit" class="form-control mb-2" value="${data.salary}" placeholder="الراتب">
+    <div id="cats"></div>
+    <button class="btn btn-outline-primary mb-2 w-100" id="addCat">إضافة قسم</button>
+    <button class="btn btn-main w-100" id="saveAcc">حفظ</button>
+  </div>`;
+  const catsDiv=document.getElementById('cats');
+  function addRow(n="",v=""){
+    const d=document.createElement('div');
+    d.className="d-flex gap-2 mb-2";
+    d.innerHTML=`<input type="text" class="form-control cname" value="${n}" placeholder="القسم"><input type="number" class="form-control cval" value="${v}" placeholder="المبلغ">`;
+    catsDiv.appendChild(d);
   }
   for(const c in data.categories)addRow(c,data.categories[c]);
-  document.getElementById('addCategoryBtn').onclick=()=>addRow();
-  document.getElementById('saveAccountBtn').onclick=async()=>{
+  document.getElementById('addCat').onclick=()=>addRow();
+  document.getElementById('saveAcc').onclick=async()=>{
     const salary=parseFloat(document.getElementById('salaryEdit').value)||0;
-    const names=document.querySelectorAll('.catName');
-    const vals=document.querySelectorAll('.catVal');
+    const names=document.querySelectorAll('.cname');
+    const vals=document.querySelectorAll('.cval');
     const cats={};
     for(let i=0;i<names.length;i++){
       const n=names[i].value.trim();
@@ -333,7 +316,7 @@ function renderAccountTab(data, uid){
       if(n)cats[n]=v;
     }
     await db.collection('users').doc(uid).update({salary,categories:cats});
-    alert("تم التحديث!");
+    alert("تم الحفظ بنجاح");
     loadUserData(uid);
   };
 }
