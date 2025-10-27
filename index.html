@@ -1,13 +1,17 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>راتبي الذكي — تطبيق</title>
 
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Bootstrap RTL CSS for nicer inputs (no JS dependency) -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
 
+<!-- Chart.js (موجود لكن لم أترك رسماً افتراضياً، يمكن إضافته لاحقاً) -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<!-- Firebase (compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -15,103 +19,141 @@
 <style>
 :root{
   --main-blue:#3b6bff;
-  --light-gray:#f5f7fb;
+  --light-bg:#f5f7fb;
   --card-shadow:0 8px 24px rgba(59,107,255,0.08);
-  --accent-text:#122034;
+  --muted:#64748b;
+  --danger:#ef4444;
+  --success:#16a34a;
 }
 *{box-sizing:border-box}
 body{
   margin:0;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background:var(--light-gray);
-  color:var(--accent-text);
+  font-family:"Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background:var(--light-bg);
+  color:#0f1724;
   -webkit-font-smoothing:antialiased;
 }
+.container-app{
+  max-width:980px;
+  margin:0 auto;
+  padding:14px;
+  padding-bottom:120px; /* space for bottom nav */
+}
+
+/* Auth card */
 #authContainer{
   max-width:420px;
-  margin:90px auto;
+  margin:70px auto;
   padding:18px;
   background:#fff;
   border-radius:14px;
   box-shadow:var(--card-shadow);
 }
-.btn-main{
-  background:var(--main-blue); color:#fff; border:none;
-  border-radius:10px; padding:10px 14px;
-}
-.btn-main:hover{ background:#597fff; }
+
+/* Cards */
 .card-royal{
-  background:#fff; border-radius:14px; padding:16px; box-shadow:var(--card-shadow); margin-bottom:16px;
+  background:#fff;
+  border-radius:12px;
+  padding:14px;
+  box-shadow:var(--card-shadow);
+  margin-bottom:12px;
 }
-input:focus, .form-control:focus{ box-shadow:none; border-color:var(--main-blue); }
-.tabContent{ display:none; padding:14px 10px 80px 10px; } /* leave space for bottom nav */
+
+/* Inputs/buttons */
+.form-control, .form-select { border-radius:10px; }
+.btn-main{ background:var(--main-blue); color:#fff; border:none; border-radius:10px; }
+.btn-main:hover{ background:#597fff; }
+
+/* bottom nav */
 .bottom-nav{
-  position:fixed; bottom:0; left:0; width:100%; background:#fff; border-top:1px solid #eef2ff;
-  display:flex; justify-content:space-around; padding:10px 6px; box-shadow:0 -6px 20px rgba(2,6,23,0.03); z-index:200;
-  gap:6px;
+  position:fixed; left:0; right:0; bottom:12px; z-index:220;
+  display:flex; gap:8px; justify-content:space-around;
+  padding:8px; margin:0 12px;
 }
-.bottom-nav div{ flex:1; text-align:center; font-size:13px; color:#63708a; cursor:pointer; padding:6px 4px; border-radius:10px; }
-.bottom-nav div.active{ color:var(--main-blue); font-weight:600; background:rgba(59,107,255,0.06);}
-.app-shell{ max-width:980px; margin:0 auto; padding-bottom:100px; }
+.bottom-nav button{
+  flex:1;
+  border-radius:12px;
+  border:1px solid rgba(15,23,36,0.06);
+  background:#fff;
+  padding:10px 6px;
+  font-weight:600;
+  color:#334155;
+  box-shadow:0 6px 18px rgba(2,6,23,0.04);
+}
+.bottom-nav button.active{ color:var(--main-blue); box-shadow:0 10px 30px rgba(59,107,255,0.08); }
 
-/* Daily form */
-.row-expense{ display:flex; gap:10px; align-items:center; margin-bottom:10px; }
-.row-expense .form-control{ border-radius:10px; padding:10px; }
-.note-input{ min-height:44px; resize:vertical; }
+/* Daily list */
+.expense-list{ display:flex; flex-direction:column; gap:10px; margin-top:10px; }
+.expense-item{ display:flex; justify-content:space-between; gap:10px; padding:10px; border-radius:10px; background:#fbfdff; box-shadow:0 6px 14px rgba(2,6,23,0.03); align-items:center; }
+.expense-left{ display:flex; flex-direction:column; gap:6px; }
+.expense-meta{ color:var(--muted); font-size:13px; }
+.expense-amount{ color:var(--main-blue); font-weight:800; font-size:15px; }
 
-/* Today's list */
-.expense-list { margin-top:12px; display:flex; flex-direction:column; gap:10px; }
-.expense-item{ display:flex; justify-content:space-between; gap:10px; align-items:center; padding:10px; border-radius:10px; background:#fbfdff; box-shadow:0 4px 14px rgba(2,6,23,0.03); }
-.expense-left{ display:flex; flex-direction:column; gap:4px; }
-.expense-meta{ font-size:13px; color:#667085; }
-.expense-amount{ font-weight:700; color:var(--main-blue); font-size:16px; }
+/* small actions */
+.actions { display:flex; gap:8px; align-items:center; }
 
-/* Weekly cards */
-.weekly-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px; margin-top:8px; }
+/* weekly layout */
+.weekly-grid{ display:grid; gap:12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-top:10px; }
 .weekly-card{ background:#fff; border-radius:12px; padding:12px; box-shadow:var(--card-shadow); }
-.days-row{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
-.day-pill{ background:#f6f8ff; padding:6px 8px; border-radius:8px; font-size:13px; color:#334155; min-width:48px; text-align:center; }
+.cat-entry{ display:flex; justify-content:space-between; gap:10px; padding:8px; border-radius:8px; background:#fbfdff; margin-top:8px; align-items:center; }
 
-/* category summary */
-.cat-summary{ margin-top:10px; padding-top:8px; border-top:1px dashed #eef2ff; display:flex; justify-content:space-between; align-items:center; gap:10px; }
-.cat-summary small{ color:#64748b; }
+/* totals */
+.totals{ margin-top:12px; padding:12px; border-radius:12px; background:linear-gradient(90deg,#eef5ff,#fff); box-shadow:var(--card-shadow); display:flex; justify-content:space-between; align-items:center; }
 
-/* footer totals */
-.totals-card{ position:relative; margin-top:12px; padding:10px 12px; border-radius:12px; background:linear-gradient(90deg,#eef5ff,#fff); box-shadow:var(--card-shadow); display:flex; justify-content:space-between; align-items:center; }
-
-/* responsiveness */
-@media(max-width:480px){
-  .row-expense{ flex-direction:column; align-items:stretch; }
-  .card-royal{ padding:12px; }
-  #authContainer{ margin:40px 12px; }
+/* responsive */
+@media(max-width:520px){
+  .container-app{ padding:10px; }
+  .bottom-nav{ bottom:8px; gap:6px; margin:0 8px; }
 }
 </style>
 </head>
 <body>
 
-<!-- Login container -->
-<div id="authContainer"></div>
+<!-- Auth container (login/signup) -->
+<div id="authContainer" style="display:none"></div>
 
 <!-- App -->
-<div id="app" class="app-shell" style="display:none;">
-  <div id="welcomeUser" class="h5 text-center" style="margin:18px 0 6px 0"></div>
+<div id="app" class="container-app" style="display:none;">
+  <div id="welcome" class="mb-2" style="text-align:center; font-weight:700;"></div>
 
-  <!-- Tabs -->
-  <div id="dailyTab" class="tabContent"></div>
-  <div id="weeklyTab" class="tabContent"></div>
-  <div id="accountTab" class="tabContent"></div>
+  <!-- Tabs content placeholders -->
+  <div id="tab-daily" style="display:none;"></div>
+  <div id="tab-weekly" style="display:none;"></div>
+  <div id="tab-account" style="display:none;"></div>
 
   <!-- Bottom navigation -->
   <div class="bottom-nav">
-    <div data-tab="dailyTab" class="active">🏷️ تسجيل المصروف</div>
-    <div data-tab="weeklyTab">📊 التحليلات الأسبوعية</div>
-    <div data-tab="accountTab">⚙️ حسابك</div>
-    <div onclick="logout()">🚪 خروج</div>
+    <button id="nav-daily" class="active">🏷️ تسجيل المصروف</button>
+    <button id="nav-weekly">📊 التحليلات الأسبوعية</button>
+    <button id="nav-account">⚙️ حسابك</button>
+    <button id="nav-logout">🚪 خروج</button>
+  </div>
+</div>
+
+<!-- Edit modal (custom light modal) -->
+<div id="editModal" style="display:none; position:fixed; inset:0; z-index:999; background:rgba(2,6,23,0.45); align-items:center; justify-content:center;">
+  <div style="width:94%; max-width:520px; background:#fff; border-radius:12px; padding:14px;">
+    <h6>تعديل المصروف</h6>
+    <div style="margin-top:8px;">
+      <label class="form-label">القسم</label>
+      <select id="editCategory" class="form-select"></select>
+      <label class="form-label mt-2">المبلغ</label>
+      <input id="editAmount" type="number" class="form-control" />
+      <label class="form-label mt-2">الوصف</label>
+      <input id="editNote" class="form-control" />
+      <label class="form-label mt-2">التاريخ</label>
+      <input id="editDate" type="date" class="form-control" />
+    </div>
+    <div style="display:flex; gap:8px; margin-top:12px; justify-content:flex-end;">
+      <button id="editCancel" class="btn btn-outline-secondary">إلغاء</button>
+      <button id="editSave" class="btn btn-main">حفظ التعديل</button>
+    </div>
   </div>
 </div>
 
 <script>
-/* ====== Firebase config (استخدمت نفس بياناتك السابقة) ====== */
+/* ========== إعداد Firebase ========== */
+/* ضعي إعدادات مشروعك هنا — القيم الحالية مأخوذة من كودك السابق */
 const firebaseConfig = {
   apiKey:"AIzaSyB-1kkLnKv51PmEmwOIk3gqsigTJOU3Cgw",
   authDomain:"budget-salary.firebaseapp.com",
@@ -124,177 +166,227 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-/* DOM refs */
+/* ===== عناصر DOM ===== */
 const authContainer = document.getElementById('authContainer');
-const app = document.getElementById('app');
-const welcomeUser = document.getElementById('welcomeUser');
+const appEl = document.getElementById('app');
+const welcomeEl = document.getElementById('welcome');
+const tabDaily = document.getElementById('tab-daily');
+const tabWeekly = document.getElementById('tab-weekly');
+const tabAccount = document.getElementById('tab-account');
 
-/* ===== Login / Signup UI ===== */
-function showLogin(){
+const navDaily = document.getElementById('nav-daily');
+const navWeekly = document.getElementById('nav-weekly');
+const navAccount = document.getElementById('nav-account');
+const navLogout = document.getElementById('nav-logout');
+
+const editModal = document.getElementById('editModal');
+const editCategory = document.getElementById('editCategory');
+const editAmount = document.getElementById('editAmount');
+const editNote = document.getElementById('editNote');
+const editDate = document.getElementById('editDate');
+const editCancel = document.getElementById('editCancel');
+const editSave = document.getElementById('editSave');
+
+let currentUserUID = null;
+let currentUserDoc = null; // snapshot data (object)
+let editingEntryId = null;
+
+/* ===== واجهة تسجيل الدخول / إنشاء حساب بسيطة ===== */
+function showAuth(){
+  authContainer.style.display = 'block';
+  appEl.style.display = 'none';
   authContainer.innerHTML = `
-    <h5 class="mb-3 text-center">تسجيل الدخول أو إنشاء حساب</h5>
-    <input type="email" id="email" class="form-control mb-2" placeholder="البريد الإلكتروني" />
-    <input type="password" id="password" class="form-control mb-2" placeholder="كلمة المرور" />
-    <button class="btn btn-main w-100 mb-2" onclick="login()">تسجيل الدخول</button>
-    <button class="btn btn-outline-primary w-100 mb-2" onclick="signupStep1()">إنشاء حساب</button>
-    <button class="btn w-100" style="border-radius:10px" onclick="googleLogin()">تسجيل بـ Google</button>
+    <h5 class="text-center mb-3">تسجيل الدخول أو إنشاء حساب</h5>
+    <input id="inEmail" class="form-control mb-2" placeholder="البريد الإلكتروني">
+    <input id="inPass" type="password" class="form-control mb-2" placeholder="كلمة المرور">
+    <div style="display:flex; gap:8px;">
+      <button id="btnLogin" class="btn btn-main flex-grow-1">تسجيل الدخول</button>
+      <button id="btnSignup" class="btn btn-outline-primary flex-grow-1">إنشاء حساب</button>
+    </div>
+    <div style="margin-top:10px; text-align:center; color:var(--muted); font-size:13px;">
+      أو تسجيل دخول مؤقت (تجريبي)
+      <div style="margin-top:6px;">
+        <button id="btnAnon" class="btn btn-outline-secondary">تجربة بدون حساب</button>
+      </div>
+    </div>
   `;
-}
-function login(){
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  if(!email || !password) { alert('الرجاء إدخال البريد وكلمة المرور'); return; }
-  auth.signInWithEmailAndPassword(email, password).catch(err=>alert(err.message));
-}
-function signupStep1(){
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  if(!email || !password) { alert('الرجاء إدخال البريد وكلمة المرور'); return; }
-  auth.createUserWithEmailAndPassword(email, password).then(cred=>{
-    // default user doc
-    db.collection('users').doc(cred.user.uid).set({
-      categories: { "مأكل": 200, "نقل": 100, "ترفيه": 50 }, // أمثلة - المستخدم سيعدلها لاحقًا
-      dailyExpenses: [],
-      salary: 0,
-      incomeSources: 0,
-      loans: 0,
-      lastSalaryDate: null
-    });
-  }).catch(err=>alert(err.message));
-}
-function googleLogin(){
-  const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider).catch(err=>alert(err.message));
-}
-function logout(){ auth.signOut(); }
-
-/* ===== bottom nav behavior ===== */
-document.querySelectorAll('.bottom-nav div[data-tab]').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    const tab = btn.dataset.tab;
-    showTab(tab);
-    document.querySelectorAll('.bottom-nav div').forEach(d=>d.classList.remove('active'));
-    btn.classList.add('active');
-  });
-});
-function showTab(tabId){
-  document.querySelectorAll('.tabContent').forEach(tc=>tc.style.display='none');
-  const el = document.getElementById(tabId);
-  if(el) el.style.display = 'block';
-  window.scrollTo({top:0, behavior:'smooth'});
+  document.getElementById('btnLogin').onclick = async ()=>{
+    const email = document.getElementById('inEmail').value.trim();
+    const pwd = document.getElementById('inPass').value;
+    if(!email || !pwd){ alert('أدخل البريد وكلمة المرور'); return; }
+    try{ await auth.signInWithEmailAndPassword(email,pwd); }
+    catch(e){ alert(e.message); }
+  };
+  document.getElementById('btnSignup').onclick = async ()=>{
+    const email = document.getElementById('inEmail').value.trim();
+    const pwd = document.getElementById('inPass').value;
+    if(!email || !pwd){ alert('أدخل البريد وكلمة المرور'); return; }
+    try{
+      const cred = await auth.createUserWithEmailAndPassword(email,pwd);
+      // create default doc
+      await db.collection('users').doc(cred.user.uid).set({
+        categories: { "مأكل": 200, "نقل": 100, "ترفيه": 50 },
+        dailyExpenses: [],
+        salary: 0,
+        incomeSources: 0,
+        loans: 0,
+        lastSalaryDate: null
+      });
+    }catch(e){ alert(e.message); }
+  };
+  document.getElementById('btnAnon').onclick = async ()=>{
+    try{ await auth.signInAnonymously(); }
+    catch(e){ alert(e.message); }
+  };
 }
 
-/* ===== auth state ===== */
-auth.onAuthStateChanged(user=>{
+/* ===== التبديل بين التابات السفلي ===== */
+function setActiveNav(btn){
+  [navDaily,navWeekly,navAccount].forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+navDaily.onclick = ()=>{ showTab('daily'); setActiveNav(navDaily); };
+navWeekly.onclick = ()=>{ showTab('weekly'); setActiveNav(navWeekly); };
+navAccount.onclick = ()=>{ showTab('account'); setActiveNav(navAccount); };
+navLogout.onclick = ()=> auth.signOut();
+
+/* ===== إظهار تب محدد ===== */
+function showTab(id){
+  tabDaily.style.display = 'none';
+  tabWeekly.style.display = 'none';
+  tabAccount.style.display = 'none';
+  if(id === 'daily') tabDaily.style.display = 'block';
+  if(id === 'weekly') tabWeekly.style.display = 'block';
+  if(id === 'account') tabAccount.style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ===== عند تغير حالة المصادقة ===== */
+auth.onAuthStateChanged(async user=>{
   if(user){
+    currentUserUID = user.uid;
     authContainer.style.display = 'none';
-    app.style.display = 'block';
-    welcomeUser.textContent = `أهلاً، ${user.email || user.displayName || 'المستخدم'} 👋`;
-    loadUserData(user.uid);
+    appEl.style.display = 'block';
+    // load user's doc
+    await fetchUserDoc();
+    welcomeEl.textContent = `أهلاً، ${user.email || user.displayName || 'المستخدم'}`;
+    // render tabs
+    renderDailyTab();
+    renderWeeklyTab();
+    renderAccountTab();
+    showTab('daily');
+    setActiveNav(navDaily);
   } else {
-    authContainer.style.display = 'block';
-    app.style.display = 'none';
-    showLogin();
+    currentUserUID = null;
+    currentUserDoc = null;
+    showAuth();
   }
 });
 
-/* ===== Load user data and render tabs ===== */
-let currentUserData = null;
-async function loadUserData(uid){
-  const doc = await db.collection('users').doc(uid).get();
-  if(!doc.exists){
-    alert('خطأ: لا توجد بيانات للمستخدم.');
-    return;
+/* ===== جلب بيانات المستخدم (مستند users/{uid}) ===== */
+async function fetchUserDoc(){
+  if(!currentUserUID) return;
+  const ref = db.collection('users').doc(currentUserUID);
+  const snap = await ref.get();
+  if(!snap.exists){
+    // if new anonymous user, create default structure
+    await ref.set({ categories: {}, dailyExpenses: [], salary:0, incomeSources:0, loans:0, lastSalaryDate:null });
+    currentUserDoc = (await ref.get()).data();
+  } else {
+    currentUserDoc = snap.data();
+    // safety defaults
+    currentUserDoc.categories = currentUserDoc.categories || {};
+    currentUserDoc.dailyExpenses = currentUserDoc.dailyExpenses || [];
   }
-  currentUserData = doc.data();
-  // ensure structure
-  currentUserData.dailyExpenses = currentUserData.dailyExpenses || [];
-  currentUserData.categories = currentUserData.categories || {};
-  // render tabs
-  renderDailyTab(currentUserData, uid);
-  renderWeeklyTab(currentUserData);
-  renderAccountTab(currentUserData, uid);
-  // open daily by default
-  showTab('dailyTab');
-  document.querySelector('.bottom-nav div[data-tab="dailyTab"]').classList.add('active');
 }
 
-/* ===== Helper: format date to YYYY-MM-DD ===== */
-function yyyy_mm_dd(d){
-  const dt = new Date(d);
-  const year = dt.getFullYear();
-  const m = (dt.getMonth()+1).toString().padStart(2,'0');
-  const day = dt.getDate().toString().padStart(2,'0');
-  return `${year}-${m}-${day}`;
-}
+/* ===== مساعدات تنسيق وعمليات على المصفوفة ===== */
+function uidForEntry(){ return Date.now().toString() + Math.random().toString(36).slice(2,7); }
+function formatCurrency(n){ const v = Number(n) || 0; return Number.isInteger(v) ? v + ' ر.ع' : v.toFixed(2) + ' ر.ع'; }
+function yyyy_mm_dd(d){ const dt = new Date(d); const y = dt.getFullYear(); const m = String(dt.getMonth()+1).padStart(2,'0'); const day = String(dt.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
+function escapeHtml(s){ if(s==null) return ''; return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
 
-/* ===== Daily Tab (تسجيل المصاريف) ===== */
-function renderDailyTab(data, uid){
-  const container = document.getElementById('dailyTab');
-  container.style.display = 'block';
-  // build category options
-  const categories = Object.keys(data.categories || {});
-  let catOptions = categories.length ? categories.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('') : '<option value="">لا توجد أقسام بعد</option>';
+/* ===== ===== صفحة تسجيل المصاريف (Daily) ===== ===== */
+function renderDailyTab(){
+  // ensure we have data
+  if(!currentUserDoc) return;
+  const categories = Object.keys(currentUserDoc.categories || {});
+  const catOptions = categories.length ? categories.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('') : `<option value="">لا توجد أقسام بعد - اذهب لصفحة حسابك لإضافتها</option>`;
 
-  container.innerHTML = `
+  tabDaily.innerHTML = `
     <div class="card-royal">
       <h5>🏷️ تسجيل مصروف جديد</h5>
-      <div style="margin-top:8px;" class="row-expense">
-        <select id="expenseCategory" class="form-control mb-1" style="min-width:160px;">
+      <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+        <select id="inpCategory" class="form-select" style="min-width:160px;">
           ${catOptions}
         </select>
-        <input id="expenseAmount" type="number" class="form-control mb-1" placeholder="المبلغ" />
+        <input id="inpAmount" type="number" class="form-control" placeholder="المبلغ">
+        <input id="inpDate" type="date" class="form-control" value="${new Date().toISOString().split('T')[0]}" style="max-width:180px;">
       </div>
-      <textarea id="expenseNote" class="form-control note-input mb-2" placeholder="سبب / فيما تم صرف المبلغ (مثلاً: غداء، تكسي، هدّية)"></textarea>
-      <div class="d-flex gap-2">
-        <button class="btn btn-main flex-grow-1" id="addExpenseBtn">إضافة مصروف</button>
-        <input type="date" id="expenseDate" class="form-control" value="${new Date().toISOString().split('T')[0]}" style="max-width:160px;border-radius:10px;"/>
+      <textarea id="inpNote" class="form-control mt-2" placeholder="سبب / فيما تم صرف المبلغ" rows="2" style="border-radius:8px"></textarea>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button id="btnAddExpense" class="btn btn-main flex-grow-1">إضافة مصروف</button>
+        <button id="btnClear" class="btn btn-outline-secondary">مسح الحقول</button>
       </div>
 
       <div style="margin-top:14px;">
-        <h6>قائمة مصروفات اليوم</h6>
-        <div id="todayList" class="expense-list"></div>
+        <h6>📋 مصاريف التاريخ المحدد</h6>
+        <div id="dailyList" class="expense-list"></div>
       </div>
     </div>
   `;
 
-  // fill today's list initially
-  populateTodayList(data);
-
-  // add handler
-  document.getElementById('addExpenseBtn').onclick = async ()=>{
-    const cat = document.getElementById('expenseCategory').value;
-    const amount = parseFloat(document.getElementById('expenseAmount').value) || 0;
-    const note = document.getElementById('expenseNote').value.trim();
-    const date = document.getElementById('expenseDate').value || yyyy_mm_dd(new Date());
-    if(!cat){ alert('الرجاء اختيار القسم'); return; }
-    if(amount <= 0){ alert('أدخل مبلغ صحيح أكبر من 0'); return; }
-    // create entry
-    const entry = { date, category: cat, amount, note, ts: new Date().toISOString() };
-    // push to local copy and update firestore
-    currentUserData.dailyExpenses.push(entry);
-    await db.collection('users').doc(uid).update({ dailyExpenses: currentUserData.dailyExpenses });
-    // reset input
-    document.getElementById('expenseAmount').value = '';
-    document.getElementById('expenseNote').value = '';
-    // refresh lists
-    populateTodayList(currentUserData);
-    // optional: show success
-    // alert('تمت الإضافة');
+  // attach handlers
+  document.getElementById('btnAddExpense').onclick = addExpenseHandler;
+  document.getElementById('btnClear').onclick = ()=>{
+    document.getElementById('inpAmount').value = '';
+    document.getElementById('inpNote').value = '';
   };
+
+  // populate today's (or selected date) list
+  populateDailyList();
 }
 
-/* Populate today's expense list (for selected date) */
-function populateTodayList(data){
-  const listEl = document.getElementById('todayList');
+/* إضافة مصروف — يضيف ككائن داخل currentUserDoc.dailyExpenses ثم يحدث المستند */
+async function addExpenseHandler(){
+  const cat = document.getElementById('inpCategory').value;
+  const amount = parseFloat(document.getElementById('inpAmount').value || 0);
+  const note = document.getElementById('inpNote').value.trim();
+  const date = document.getElementById('inpDate').value || yyyy_mm_dd(new Date());
+  if(!cat){ alert('اختر القسم'); return; }
+  if(!(amount>0)){ alert('أدخل مبلغًا صحيحًا أكبر من صفر'); return; }
+
+  const entry = {
+    id: uidForEntry(),
+    date,
+    category: cat,
+    amount,
+    note,
+    ts: new Date().toISOString()
+  };
+
+  // push locally
+  currentUserDoc.dailyExpenses.push(entry);
+  // update firestore
+  await db.collection('users').doc(currentUserUID).update({ dailyExpenses: currentUserDoc.dailyExpenses });
+  // refresh UI
+  populateDailyList();
+  // clear inputs
+  document.getElementById('inpAmount').value = '';
+  document.getElementById('inpNote').value = '';
+}
+
+/* عرض قائمة المصروفات لليوم المحدد */
+function populateDailyList(){
+  const listEl = document.getElementById('dailyList');
   if(!listEl) return;
-  const selectedDate = document.getElementById('expenseDate') ? document.getElementById('expenseDate').value : yyyy_mm_dd(new Date());
-  // filter entries that match date
-  const todays = (data.dailyExpenses || []).filter(e => e.date === selectedDate);
-  // sort by timestamp (recent first)
+  const date = document.getElementById('inpDate').value || yyyy_mm_dd(new Date());
+  // filter entries with same date
+  const todays = (currentUserDoc.dailyExpenses || []).filter(e => e.date === date);
+  // sort by ts desc
   todays.sort((a,b)=> new Date(b.ts) - new Date(a.ts));
   if(todays.length === 0){
-    listEl.innerHTML = `<div class="text-muted" style="padding:8px 4px">لا يوجد مصروفات لهذا التاريخ.</div>`;
+    listEl.innerHTML = `<div class="text-muted">لا توجد مصروفات على هذا التاريخ.</div>`;
     return;
   }
   listEl.innerHTML = '';
@@ -303,253 +395,296 @@ function populateTodayList(data){
     div.className = 'expense-item';
     div.innerHTML = `
       <div class="expense-left">
-        <div style="display:flex; gap:8px; align-items:center;">
-          <div style="font-weight:700; color:#0f1724;">${escapeHtml(entry.category)}</div>
-          <div class="expense-meta">• ${escapeHtml(entry.note || '-')}</div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <div style="font-weight:700">${escapeHtml(entry.category)}</div>
+          <div class="expense-meta">${escapeHtml(entry.note || '-')}</div>
         </div>
         <div class="expense-meta">${entry.date} • ${new Date(entry.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
       </div>
-      <div style="text-align:right">
+      <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
         <div class="expense-amount">${formatCurrency(entry.amount)}</div>
-        <!-- optional: remove/edit buttons could go here -->
+        <div class="actions">
+          <button class="btn btn-sm btn-outline-secondary" onclick="openEdit('${entry.id}')">✏️ تعديل</button>
+          <button class="btn btn-sm btn-outline-danger" onclick="removeEntry('${entry.id}')">🗑️ حذف</button>
+        </div>
       </div>
     `;
     listEl.appendChild(div);
   });
 }
 
-/* ===== Weekly Tab (تفاصيل كاملة خلال آخر 7 أيام) ===== */
-function renderWeeklyTab(data){
-  const container = document.getElementById('weeklyTab');
-  container.style.display = 'block';
-  container.innerHTML = `
-    <div style="display:flex; gap:10px; align-items:center; justify-content:space-between;">
-      <h5>📊 التحليلات الأسبوعية</h5>
-      <small class="text-muted">آخر 7 أيام</small>
-    </div>
+/* ========== تعديل / حذف (من اليومية أو الأسبوعية) ========== */
+/* فتح مودال التعديل وتعبئته */
+function openEdit(entryId){
+  const entry = (currentUserDoc.dailyExpenses || []).find(x=>x.id === entryId);
+  if(!entry){ alert('لم يتم العثور على البيان'); return; }
+  editingEntryId = entryId;
+  // fill category select
+  const cats = Object.keys(currentUserDoc.categories || {});
+  editCategory.innerHTML = cats.map(c=>`<option value="${escapeHtml(c)}"${c===entry.category?' selected':''}>${escapeHtml(c)}</option>`).join('');
+  editAmount.value = entry.amount;
+  editNote.value = entry.note || '';
+  editDate.value = entry.date || yyyy_mm_dd(new Date());
+  showEditModal();
+}
 
-    <div id="weeklyContent" style="margin-top:10px;">
-      <!-- weekly content will be injected here -->
+/* إظهار/إخفاء المودال */
+function showEditModal(){ editModal.style.display = 'flex'; editModal.scrollTop = 0; }
+function hideEditModal(){ editModal.style.display = 'none'; editingEntryId = null; }
+
+/* حفظ التعديل */
+editSave.onclick = async ()=>{
+  if(!editingEntryId){ hideEditModal(); return; }
+  const entryIndex = (currentUserDoc.dailyExpenses || []).findIndex(x=>x.id === editingEntryId);
+  if(entryIndex === -1){ alert('لم يتم العثور على البيان'); hideEditModal(); return; }
+  const cat = editCategory.value;
+  const amt = parseFloat(editAmount.value || 0);
+  const note = editNote.value.trim();
+  const date = editDate.value || yyyy_mm_dd(new Date());
+  if(!cat){ alert('اختر القسم'); return; }
+  if(!(amt>0)){ alert('أدخل مبلغًا صحيحًا أكبر من صفر'); return; }
+  // update locally
+  currentUserDoc.dailyExpenses[entryIndex].category = cat;
+  currentUserDoc.dailyExpenses[entryIndex].amount = amt;
+  currentUserDoc.dailyExpenses[entryIndex].note = note;
+  currentUserDoc.dailyExpenses[entryIndex].date = date;
+  currentUserDoc.dailyExpenses[entryIndex].ts = new Date().toISOString();
+  // update firestore
+  await db.collection('users').doc(currentUserUID).update({ dailyExpenses: currentUserDoc.dailyExpenses });
+  // refresh UI
+  populateDailyList();
+  renderWeeklyTab(); // refresh weekly too
+  hideEditModal();
+};
+
+/* إلغاء */
+editCancel.onclick = ()=> hideEditModal();
+
+/* حذف قيد */
+async function removeEntry(entryId){
+  if(!confirm('هل تريد حذف هذا المصروف نهائيًا؟')) return;
+  currentUserDoc.dailyExpenses = (currentUserDoc.dailyExpenses || []).filter(x=>x.id !== entryId);
+  await db.collection('users').doc(currentUserUID).update({ dailyExpenses: currentUserDoc.dailyExpenses });
+  // refresh current views
+  populateDailyList();
+  renderWeeklyTab();
+}
+
+/* ========== صفحة التحليلات الأسبوعية ========== */
+function renderWeeklyTab(){
+  if(!currentUserDoc) return;
+  tabWeekly.innerHTML = `
+    <div class="card-royal">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h5>📊 التحليلات الأسبوعية</h5>
+        <small style="color:var(--muted)">آخر 7 أيام</small>
+      </div>
+      <div id="weeklyContent"></div>
     </div>
   `;
+  buildWeeklyContent();
+}
 
+/* يبني محتوى الأسبوع: كل يوم مع التفاصيل، وتلخيص بحسب الأقسام */
+function buildWeeklyContent(){
   const weeklyContent = document.getElementById('weeklyContent');
+  // days list
   const today = new Date();
   const days = [];
-  for(let i=6;i>=0;i--){
-    const d = new Date();
-    d.setDate(today.getDate()-i);
-    days.push( yyyy_mm_dd(d) );
-  }
+  for(let i=6;i>=0;i--){ const d = new Date(); d.setDate(today.getDate()-i); days.push( yyyy_mm_dd(d) ); }
 
-  // Filter expenses within last 7 days
-  const inRange = (data.dailyExpenses || []).filter(e => days.includes(e.date));
-  // sort by date desc then time desc
+  // filter entries in range
+  const inRange = (currentUserDoc.dailyExpenses || []).filter(e => days.includes(e.date));
+  // sort by date desc then ts desc
   inRange.sort((a,b)=>{
     if(a.date === b.date) return new Date(b.ts) - new Date(a.ts);
     return new Date(b.date) - new Date(a.date);
   });
 
-  // Build per-category grouping and totals
-  const categories = Object.keys(data.categories || {});
-  const catTotals = {}; // total per category this week
-  categories.forEach(c=> catTotals[c]=0);
-
-  inRange.forEach(entry=>{
-    if(!(entry.category in catTotals)) catTotals[entry.category] = 0;
-    catTotals[entry.category] += entry.amount;
-  });
-
-  // Build top: full list grouped by day with full details (each entry shown)
-  // We'll show a vertical list of days; under each day show entries (with duplicates displayed)
+  // group by day
   let html = '';
-
-  // For each day show day header and entries
-  days.forEach(day=>{
-    const entries = inRange.filter(e=>e.date===day);
-    if(entries.length === 0) return; // skip day with no entries
-    html += `<div class="card-royal" style="padding:12px 14px; margin-bottom:10px;">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div><strong>${formatFriendlyDate(day)}</strong><div style="font-size:13px;color:#64748b">اليوم: ${day}</div></div>
-        <div style="font-weight:700;color:var(--main-blue)">${formatCurrency(entries.reduce((s,x)=>s+x.amount,0))}</div>
-      </div>
-      <div style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">
-    `;
-    // each entry
-    entries.forEach(en=>{
-      html += `<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px; border-radius:10px; background:#fbfdff;">
-        <div style="flex:1 1 60%;">
-          <div style="font-weight:600">${escapeHtml(en.category)}</div>
-          <div style="font-size:13px;color:#64748b">${escapeHtml(en.note || '-')}</div>
-          <div style="font-size:12px;color:#94a3b8;margin-top:6px">${new Date(en.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-weight:700;color:var(--main-blue)">${formatCurrency(en.amount)}</div>
-        </div>
-      </div>`;
-    });
-
-    html += `</div></div>`; // close card
-  });
-
-  // If there are no entries at all
   if(inRange.length === 0){
-    html += `<div class="card-royal text-center"><div class="text-muted">لا توجد مصروفات في آخر 7 أيام.</div></div>`;
+    html += `<div style="padding:12px; color:var(--muted)">لا توجد مصاريف في آخر 7 أيام.</div>`;
+  } else {
+    // for each day show header and its entries
+    days.forEach(day=>{
+      const dayEntries = inRange.filter(e=>e.date === day);
+      if(dayEntries.length === 0) return;
+      const dayTotal = dayEntries.reduce((s,x)=>s + Number(x.amount||0), 0);
+      html += `<div style="margin-top:10px; padding:10px; border-radius:10px; background:#fff; box-shadow:var(--card-shadow);">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div><strong>${friendlyDayLabel(day)}</strong><div style="font-size:13px;color:var(--muted)">${day}</div></div>
+          <div style="font-weight:800; color:var(--main-blue)">${formatCurrency(dayTotal)}</div>
+        </div>
+        <div style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">`;
+
+      dayEntries.forEach(en=>{
+        html += `<div class="cat-entry">
+          <div style="flex:1;">
+            <div style="font-weight:700">${escapeHtml(en.category)}</div>
+            <div style="font-size:13px;color:var(--muted)">${escapeHtml(en.note||'-')}</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:6px">${new Date(en.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-weight:800;color:var(--main-blue)">${formatCurrency(en.amount)}</div>
+            <div style="margin-top:6px; display:flex; gap:6px; justify-content:flex-end;">
+              <button class="btn btn-sm btn-outline-secondary" onclick="openEdit('${en.id}')">✏️</button>
+              <button class="btn btn-sm btn-outline-danger" onclick="removeEntry('${en.id}')">🗑️</button>
+            </div>
+          </div>
+        </div>`;
+      });
+
+      html += `</div></div>`;
+    });
   }
 
-  // Append per-category summaries grid
-  html += `<div style="margin-top:6px;"><h6>ملخص الأقسام (خلال الأسبوع)</h6>
-    <div class="weekly-grid" id="catSummaries"></div></div>`;
+  // Category summaries
+  const catTotals = {};
+  (currentUserDoc.dailyExpenses || []).forEach(e=>{
+    // only week
+    const daysRange = days;
+    if(!daysRange.includes(e.date)) return;
+    if(!catTotals[e.category]) catTotals[e.category]=0;
+    catTotals[e.category] += Number(e.amount||0);
+  });
 
-  // Append total card placeholder
-  html += `<div id="overallTotals"></div>`;
+  // categories list includes those in allocations + any spent categories
+  const allCats = new Set([ ...Object.keys(currentUserDoc.categories || {}), ...Object.keys(catTotals) ]);
+
+  // build summaries grid
+  html += `<div style="margin-top:12px;">
+    <h6>ملخص الأقسام هذا الأسبوع</h6>
+    <div class="weekly-grid">`;
+  allCats.forEach(cat=>{
+    const alloc = Number(currentUserDoc.categories && currentUserDoc.categories[cat] ? currentUserDoc.categories[cat] : 0);
+    const spent = Number(catTotals[cat]||0);
+    const remaining = alloc - spent;
+    // entries list for this cat
+    const entries = (currentUserDoc.dailyExpenses || []).filter(e=>e.category===cat && days.includes(e.date)).sort((a,b)=> new Date(b.date) - new Date(a.date) || new Date(b.ts)-new Date(a.ts));
+
+    html += `<div class="weekly-card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div><strong>${escapeHtml(cat)}</strong><div style="font-size:13px;color:var(--muted)">مخصص: ${formatCurrency(alloc)}</div></div>
+        <div style="text-align:right">
+          <div style="font-weight:800;color:var(--main-blue)">${formatCurrency(spent)}</div>
+          <div style="font-size:13px; color:${remaining<0? 'var(--danger)' : 'var(--success)'}; margin-top:6px;">
+            ${ remaining < 0 ? 'تجاوز بـ ' + formatCurrency(Math.abs(remaining)) : 'المتبقي ' + formatCurrency(remaining) }
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:8px; font-size:13px; color:var(--muted)"><small>تفاصيل الصرف من هذا القسم خلال الأسبوع:</small></div>`;
+
+    if(entries.length){
+      entries.forEach(en=>{
+        html += `<div class="cat-entry">
+          <div>
+            <div style="font-weight:600">${escapeHtml(en.note||'-')}</div>
+            <div style="font-size:12px;color:var(--muted)">${en.date} • ${new Date(en.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+          </div>
+          <div style="font-weight:800;color:var(--main-blue)">${formatCurrency(en.amount)}</div>
+        </div>`;
+      });
+    } else {
+      html += `<div style="margin-top:8px;color:var(--muted); font-size:13px">لا توجد مصاريف لهذا القسم هذا الأسبوع</div>`;
+    }
+
+    html += `</div>`; // weekly-card
+  });
+  html += `</div></div>`; // close grid and section
+
+  // overall totals
+  const overallTotal = Object.values(catTotals).reduce((s,v)=>s+Number(v||0),0);
+  html += `<div class="totals">
+    <div>
+      <div style="font-size:13px;color:#334155">إجمالي المصروف هذا الأسبوع</div>
+      <div style="font-weight:800; font-size:18px; margin-top:6px">${formatCurrency(overallTotal)}</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:13px;color:#334155">عدد القيود</div>
+      <div style="font-weight:700; font-size:16px; margin-top:6px">${inRange.length}</div>
+    </div>
+  </div>`;
 
   weeklyContent.innerHTML = html;
-
-  // Fill category summaries
-  const catSummariesEl = document.getElementById('catSummaries');
-  const totalAll = Object.values(catTotals).reduce((s,x)=>s+x,0);
-
-  // Ensure categories that had no allocation but have spending show too
-  const allCats = new Set([...Object.keys(data.categories||{}), ...Object.keys(catTotals||{})]);
-
-  allCats.forEach(cat=>{
-    const alloc = data.categories && data.categories[cat] ? data.categories[cat] : 0;
-    const spent = catTotals[cat] || 0;
-    const remaining = alloc - spent;
-    const card = document.createElement('div');
-    card.className = 'weekly-card';
-    card.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div><strong>${escapeHtml(cat)}</strong><div style="font-size:13px;color:#64748b">المخصص: ${formatCurrency(alloc)}</div></div>
-        <div style="text-align:right">
-          <div style="font-weight:700;color:var(--main-blue)">${formatCurrency(spent)}</div>
-          <div style="font-size:13px;color:${remaining<0?'#ef4444':'#16a34a'}">${remaining<0? 'تجاوز بـ '+formatCurrency(Math.abs(remaining)) : 'المتبقي '+formatCurrency(remaining)}</div>
-        </div>
-      </div>
-
-      <div style="margin-top:8px; font-size:13px; color:#475569">
-        <small>تفاصيل: عرض كل مرات الصرف من هذا القسم خلال الأسبوع أدناه</small>
-      </div>
-    `;
-    // list of entries for this category
-    const entriesList = (inRange.filter(e=>e.category===cat)).map(en=>{
-      return `<div style="margin-top:8px;padding:8px;border-radius:8px;background:#fbfdff;display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-size:13px;">
-          <div style="font-weight:600">${escapeHtml(en.note || '-')}</div>
-          <div style="color:#64748b;font-size:12px">${en.date} • ${new Date(en.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-        </div>
-        <div style="font-weight:700;color:var(--main-blue)">${formatCurrency(en.amount)}</div>
-      </div>`;
-    }).join('');
-
-    const entriesWrapper = document.createElement('div');
-    entriesWrapper.style.marginTop = '8px';
-    entriesWrapper.innerHTML = entriesList || `<div style="margin-top:8px;color:#9aa6b2;font-size:13px">لا توجد مصروفات لهذا القسم هذا الأسبوع</div>`;
-    card.appendChild(entriesWrapper);
-    catSummariesEl.appendChild(card);
-  });
-
-  // Overall totals
-  const overallEl = document.getElementById('overallTotals');
-  overallEl.innerHTML = `
-    <div class="totals-card">
-      <div>
-        <div style="font-size:13px;color:#334155">إجمالي المصروف خلال الأسبوع</div>
-        <div style="font-weight:800; font-size:18px; margin-top:6px">${formatCurrency(totalAll)}</div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:13px;color:#334155">عدد القيود</div>
-        <div style="font-weight:700; font-size:16px; margin-top:6px">${inRange.length}</div>
-      </div>
-    </div>
-  `;
 }
 
-/* ===== Account Tab (تعديل الأقسام والراتب) ===== */
-function renderAccountTab(data, uid){
-  const container = document.getElementById('accountTab');
-  container.style.display = 'block';
-  // build categories list rows
-  const rows = Object.keys(data.categories || {}).map(cat=>{
-    const val = data.categories[cat];
-    return `<div class="d-flex gap-2 mb-2">
-      <input type="text" class="form-control category-name-input" value="${escapeHtml(cat)}" placeholder="اسم القسم"/>
-      <input type="number" class="form-control category-alloc-input" value="${val}" placeholder="المبلغ"/>
-    </div>`;
-  }).join('');
-
-  container.innerHTML = `
-    <div class="card-royal">
-      <h5>⚙️ حسابك وتخصيص الأقسام</h5>
-      <div style="margin-top:8px;">
-        <label>الراتب (اختياري)</label>
-        <input id="salaryEdit" type="number" class="form-control mb-2" value="${data.salary || 0}" />
-        <label>قائمة الأقسام والمخصص لكل قسم</label>
-        <div id="editCategoriesContainer">${rows}</div>
-        <button id="addEditCategoryBtn" class="btn btn-outline-primary mb-2 w-100">إضافة قسم جديد</button>
-        <button id="saveAccountBtn" class="btn btn-main w-100">حفظ التعديلات</button>
-      </div>
-
-      <div style="margin-top:12px;">
-        <h6>معلومات سريعة</h6>
-        <div style="font-size:13px;color:#64748b">المصروفات المخزنة: <strong>${(data.dailyExpenses||[]).length}</strong> قيد</div>
-      </div>
-    </div>
-  `;
-
-  const editContainer = document.getElementById('editCategoriesContainer');
-  function addEditRow(name="", alloc=""){
-    const div = document.createElement('div');
-    div.className = 'd-flex gap-2 mb-2';
-    div.innerHTML = `<input type="text" class="form-control category-name-input" value="${escapeHtml(name)}" placeholder="اسم القسم"/>
-      <input type="number" class="form-control category-alloc-input" value="${alloc || 0}" placeholder="المبلغ"/>`;
-    editContainer.appendChild(div);
-  }
-  document.getElementById('addEditCategoryBtn').onclick = ()=> addEditRow();
-
-  document.getElementById('saveAccountBtn').onclick = async ()=>{
-    const salary = parseFloat(document.getElementById('salaryEdit').value) || 0;
-    const names = Array.from(document.getElementsByClassName('category-name-input'));
-    const allocs = Array.from(document.getElementsByClassName('category-alloc-input'));
-    const categories = {};
-    for(let i=0;i<names.length;i++){
-      const n = names[i].value.trim();
-      const a = parseFloat(allocs[i].value) || 0;
-      if(n) categories[n]=a;
-    }
-    await db.collection('users').doc(auth.currentUser.uid).update({ salary, categories });
-    // reload data
-    await loadUserData(auth.currentUser.uid);
-    alert('تم حفظ التعديلات!');
-  };
-}
-
-/* ===== utilities ===== */
-function formatCurrency(n){
-  // format with 2 decimal or integer if whole
-  const v = Number(n) || 0;
-  if(Number.isInteger(v)) return v + ' ريال';
-  return v.toFixed(2) + ' ريال';
-}
-function formatFriendlyDate(iso){
+/* friendly day label Arabic */
+function friendlyDayLabel(iso){
   const d = new Date(iso);
-  // produce Arabic friendly like: الخميس 23/10
   const daysAr = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
   return `${daysAr[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`;
 }
-function escapeHtml(s){
-  if(s===null || s===undefined) return '';
-  return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+
+/* ========== صفحة الحساب (تعديل الأقسام والراتب) ========== */
+function renderAccountTab(){
+  if(!currentUserDoc) return;
+  const categories = currentUserDoc.categories || {};
+  const rows = Object.keys(categories).map(cat=>{
+    return `<div class="d-flex gap-2 mb-2">
+      <input class="form-control cat-name" value="${escapeHtml(cat)}" placeholder="اسم القسم">
+      <input class="form-control cat-alloc" type="number" value="${categories[cat] || 0}" placeholder="المبلغ">
+    </div>`;
+  }).join('');
+
+  tabAccount.innerHTML = `
+    <div class="card-royal">
+      <h5>⚙️ حسابك وتخصيص الأقسام</h5>
+      <div style="margin-top:8px;">
+        <label class="form-label">الراتب</label>
+        <input id="salaryInput" type="number" class="form-control mb-2" value="${currentUserDoc.salary || 0}">
+        <label class="form-label">قائمة الأقسام</label>
+        <div id="catsContainer">${rows}</div>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button id="addCatBtn" class="btn btn-outline-primary">إضافة قسم</button>
+          <button id="saveAccountBtn" class="btn btn-main flex-grow-1">حفظ الإعدادات</button>
+        </div>
+      </div>
+      <div style="margin-top:12px; color:var(--muted); font-size:13px;">
+        عدد القيود المخزنة: <strong>${(currentUserDoc.dailyExpenses||[]).length}</strong>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('addCatBtn').onclick = ()=>{
+    const div = document.createElement('div');
+    div.className = 'd-flex gap-2 mb-2';
+    div.innerHTML = `<input class="form-control cat-name" placeholder="اسم القسم">
+      <input class="form-control cat-alloc" type="number" placeholder="المبلغ">`;
+    document.getElementById('catsContainer').appendChild(div);
+  };
+
+  document.getElementById('saveAccountBtn').onclick = async ()=>{
+    const salary = parseFloat(document.getElementById('salaryInput').value) || 0;
+    const names = Array.from(document.getElementsByClassName('cat-name')).map(i=>i.value.trim()).filter(x=>x);
+    const allocs = Array.from(document.getElementsByClassName('cat-alloc')).map(i=>parseFloat(i.value)||0);
+    const categories = {};
+    for(let i=0;i<names.length;i++){ categories[names[i]] = allocs[i] || 0; }
+    // update firestore
+    await db.collection('users').doc(currentUserUID).update({ salary, categories });
+    // re-fetch and refresh UIs
+    await fetchUserDoc();
+    renderDailyTab();
+    renderWeeklyTab();
+    alert('تم حفظ الإعدادات!');
+  };
 }
 
-/* update today's list when date changed */
+/* ========== رد على تغييرات التاريخ في daily (لتحديث القائمة) ========== */
 document.addEventListener('change', (e)=>{
-  if(e.target && e.target.id === 'expenseDate'){
-    // refresh today list if present
-    if(currentUserData) populateTodayList(currentUserData);
-  }
+  if(e.target && e.target.id === 'inpDate') populateDailyList();
 });
+
+/* ========== تحديث البيانات المحلية عند تغيير في الفايرستور (اختياري) ========= */
+/* هنا نستخدم fetchUserDoc متى نحتاج تحديث بعد عملياتنا. */
+/* لكن لو أردتي مراقبة real-time استخدمي onSnapshot بدل get في fetchUserDoc. */
+
+/* ========== دوال المساعدة عند start ========== */
+(async function init(){
+  // show auth or app based on auth state (handled by onAuthStateChanged)
+  showAuth();
+})();
+
 </script>
 
 </body>
