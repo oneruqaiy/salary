@@ -362,32 +362,75 @@ function renderWeeklyTab(data){
 }
 
 // ===== Edit & Delete =====
-async function editExpense(date,cat,index){
-  const uid=auth.currentUser.uid;
-  const docSnap=await db.collection('users').doc(uid).get();
-  const data=docSnap.data();
-  const e=data.dailyExpenses.filter(x=>x.date===date && x.cat===cat)[index];
-  const newDesc=prompt("تعديل سبب الصرف:", e.desc);
-  const newAmount=parseFloat(prompt("تعديل المبلغ:", e.amount));
-  if(newDesc!==null && !isNaN(newAmount)){
-    const idx=data.dailyExpenses.findIndex(x=>x===e);
-    data.dailyExpenses[idx].desc=newDesc;
-    data.dailyExpenses[idx].amount=newAmount;
-    await db.collection('users').doc(uid).update({dailyExpenses:data.dailyExpenses});
+// ===== Edit & Delete (معدلة بالكامل) =====
+async function editExpense(date, cat, index) {
+  const uid = auth.currentUser.uid;
+  const docSnap = await db.collection('users').doc(uid).get();
+  const data = docSnap.data();
+
+  // البحث عن كل المصاريف في نفس التاريخ والفئة
+  const expensesInCatDate = data.dailyExpenses.filter(x => x.date === date && x.cat === cat);
+  const expenseToEdit = expensesInCatDate[index];
+
+  if (!expenseToEdit) {
+    alert("حدث خطأ أثناء تعديل المصروف");
+    return;
+  }
+
+  const newDesc = prompt("تعديل سبب الصرف:", expenseToEdit.desc);
+  if (newDesc === null) return; // المستخدم ألغى
+
+  const newAmount = parseFloat(prompt("تعديل المبلغ:", expenseToEdit.amount));
+  if (isNaN(newAmount) || newAmount <= 0) {
+    alert("الرجاء إدخال مبلغ صالح");
+    return;
+  }
+
+  // تحديث العنصر المحدد بدقة في dailyExpenses
+  const realIndex = data.dailyExpenses.findIndex(
+    x => x.date === expenseToEdit.date && x.cat === expenseToEdit.cat && x.amount === expenseToEdit.amount && x.desc === expenseToEdit.desc
+  );
+
+  if (realIndex !== -1) {
+    data.dailyExpenses[realIndex].desc = newDesc;
+    data.dailyExpenses[realIndex].amount = newAmount;
+    await db.collection('users').doc(uid).update({ dailyExpenses: data.dailyExpenses });
+    alert("✅ تم تعديل المصروف بنجاح");
     loadUserData(uid);
+  } else {
+    alert("لم يتم العثور على المصروف لتعديله");
   }
 }
-async function deleteExpense(date,cat,index){
-  if(!confirm("هل أنت متأكد من حذف هذا المصروف؟")) return;
-  const uid=auth.currentUser.uid;
-  const docSnap=await db.collection('users').doc(uid).get();
-  const data=docSnap.data();
-  const e=data.dailyExpenses.filter(x=>x.date===date && x.cat===cat)[index];
-  const idx=data.dailyExpenses.findIndex(x=>x===e);
-  data.dailyExpenses.splice(idx,1);
-  await db.collection('users').doc(uid).update({dailyExpenses:data.dailyExpenses});
-  loadUserData(uid);
+
+async function deleteExpense(date, cat, index) {
+  if (!confirm("هل أنت متأكد من حذف هذا المصروف؟")) return;
+
+  const uid = auth.currentUser.uid;
+  const docSnap = await db.collection('users').doc(uid).get();
+  const data = docSnap.data();
+
+  const expensesInCatDate = data.dailyExpenses.filter(x => x.date === date && x.cat === cat);
+  const expenseToDelete = expensesInCatDate[index];
+
+  if (!expenseToDelete) {
+    alert("حدث خطأ أثناء حذف المصروف");
+    return;
+  }
+
+  const realIndex = data.dailyExpenses.findIndex(
+    x => x.date === expenseToDelete.date && x.cat === expenseToDelete.cat && x.amount === expenseToDelete.amount && x.desc === expenseToDelete.desc
+  );
+
+  if (realIndex !== -1) {
+    data.dailyExpenses.splice(realIndex, 1);
+    await db.collection('users').doc(uid).update({ dailyExpenses: data.dailyExpenses });
+    alert("🗑️ تم حذف المصروف بنجاح");
+    loadUserData(uid);
+  } else {
+    alert("لم يتم العثور على المصروف لحذفه");
+  }
 }
+
 
 // ===== Account Tab =====
 function renderAccountTab(data, uid){
@@ -434,6 +477,7 @@ function renderAccountTab(data, uid){
 
 </body>
 </html>
+
 
 
 
