@@ -264,7 +264,7 @@ function renderInitialSetup(uid, data){
   };
 }
 
-// ===== Daily Tab =====
+// ===== Daily Tab (النسخة البسيطة القديمة) =====
 function renderDailyTab(data, uid){
   const container=document.getElementById('dailyTab');
   container.style.display='block';
@@ -278,19 +278,23 @@ function renderDailyTab(data, uid){
       <button id="newCycleBtn" class="btn btn-outline-primary mb-2">ابدئي دورة راتب جديدة</button>
     </div>
   `;
+
   const expenseInputs=document.getElementById('expenseInputs');
   for(const cat in data.categories){
     const div=document.createElement('div');
-    div.className="expense-entry";
-    div.innerHTML=`<input type="text" class="form-control expense-desc" placeholder="لِماذا تم الصرف؟">
-      <input type="number" class="form-control expense-amount" placeholder="المبلغ" data-cat="${cat}" data-limit="${data.categories[cat]}">
-      <span class="category-name">${cat}</span>`;
+    div.className="mb-2";
+    div.innerHTML=`
+      <span class="category-name">${cat}</span>
+      <input type="text" class="form-control expense-desc mb-1" placeholder="لِماذا تم الصرف؟">
+      <input type="number" class="form-control expense-amount" placeholder="المبلغ" data-cat="${cat}">
+    `;
     expenseInputs.appendChild(div);
   }
+
   document.getElementById('addExpenseBtn').onclick=async ()=>{
     const date=document.getElementById('expenseDate').value;
     const newExpenses=[];
-    document.querySelectorAll('.expense-entry').forEach(div=>{
+    document.querySelectorAll('.expense-entry, #expenseInputs > div').forEach(div=>{
       const desc=div.querySelector('.expense-desc').value.trim();
       const amount=parseFloat(div.querySelector('.expense-amount').value)||0;
       const cat=div.querySelector('.expense-amount').dataset.cat;
@@ -302,6 +306,7 @@ function renderDailyTab(data, uid){
     alert("تم حفظ المصروفات!");
     loadUserData(uid);
   };
+
   document.getElementById('newCycleBtn').onclick=async ()=>{
     if(confirm("هل تريد بدء دورة راتب جديدة؟ سيتم حذف المصروفات السابقة.")){
       await db.collection('users').doc(uid).update({dailyExpenses:[], lastSalaryDate:new Date().toISOString().split('T')[0]});
@@ -309,6 +314,7 @@ function renderDailyTab(data, uid){
     }
   };
 }
+
 
 // ===== Weekly Tab مع تعديل وحذف المصروفات =====
 function renderWeeklyTab(data){
@@ -431,3 +437,4 @@ function renderAccountTab(data, uid){
 
 </body>
 </html>
+
