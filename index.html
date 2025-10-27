@@ -225,7 +225,7 @@ function showAuth(){
       const cred = await auth.createUserWithEmailAndPassword(email,pwd);
       // create default doc
       await db.collection('users').doc(cred.user.uid).set({
-        categories: { "مأكل": 200, "نقل": 100, "ترفيه": 50 },
+        categories: { "أكل": 40, "بترول": 40, "ترفيه": 70 },
         dailyExpenses: [],
         salary: 0,
         incomeSources: 0,
@@ -323,7 +323,7 @@ function renderDailyTab(){
         <input id="inpAmount" type="number" class="form-control" placeholder="المبلغ">
         <input id="inpDate" type="date" class="form-control" value="${new Date().toISOString().split('T')[0]}" style="max-width:180px;">
       </div>
-      <textarea id="inpNote" class="form-control mt-2" placeholder="سبب / فيما تم صرف المبلغ" rows="2" style="border-radius:8px"></textarea>
+      <textarea id="inpNote" class="form-control mt-2" placeholder="فيما تم صرف المبلغ" rows="2" style="border-radius:8px"></textarea>
       <div style="display:flex; gap:8px; margin-top:10px;">
         <button id="btnAddExpense" class="btn btn-main flex-grow-1">إضافة مصروف</button>
         <button id="btnClear" class="btn btn-outline-secondary">مسح الحقول</button>
@@ -689,3 +689,4 @@ document.addEventListener('change', (e)=>{
 
 </body>
 </html>
+
