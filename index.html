@@ -264,40 +264,39 @@ function renderInitialSetup(uid, data){
   };
 }
 
-// ===== Daily Tab (النسخة البسيطة القديمة) =====
+// ===== Daily Tab =====
 function renderDailyTab(data, uid){
   const container=document.getElementById('dailyTab');
   container.style.display='block';
   container.innerHTML=`
-    <div class="card card-royal">
-      <h5>تسجيل المصاريف اليومية</h5>
-      <label>اختر التاريخ:</label>
-      <input type="date" id="expenseDate" class="form-control mb-2" value="${new Date().toISOString().split('T')[0]}">
-      <div id="expenseInputs"></div>
-      <button id="addExpenseBtn" class="btn btn-main mb-2">حفظ المصروفات</button>
-      <button id="newCycleBtn" class="btn btn-outline-primary mb-2">ابدئي دورة راتب جديدة</button>
-    </div>
+    <h5 class="mb-3 text-center">🏷️ تسجيل المصاريف اليومية</h5>
+    <label>اختر التاريخ:</label>
+    <input type="date" id="expenseDate" class="form-control mb-3" value="${new Date().toISOString().split('T')[0]}">
+    <div class="cards-grid" id="expenseCards"></div>
+    <button id="addExpenseBtn" class="btn btn-main w-100 mb-2">حفظ المصروفات</button>
+    <button id="newCycleBtn" class="btn btn-outline-primary w-100">ابدئي دورة راتب جديدة</button>
   `;
 
-  const expenseInputs=document.getElementById('expenseInputs');
+  const expenseCards=document.getElementById('expenseCards');
+
   for(const cat in data.categories){
-    const div=document.createElement('div');
-    div.className="mb-2";
-    div.innerHTML=`
-      <span class="category-name">${cat}</span>
-      <input type="text" class="form-control expense-desc mb-1" placeholder="لِماذا تم الصرف؟">
+    const card=document.createElement('div');
+    card.className="card-grid-item";
+    card.innerHTML=`
+      <div class="mb-2"><strong>${cat}</strong> (المتبقي: ${data.categories[cat]} ريال)</div>
+      <input type="text" class="form-control mb-2 expense-desc" placeholder="لِماذا تم الصرف؟">
       <input type="number" class="form-control expense-amount" placeholder="المبلغ" data-cat="${cat}">
     `;
-    expenseInputs.appendChild(div);
+    expenseCards.appendChild(card);
   }
 
   document.getElementById('addExpenseBtn').onclick=async ()=>{
     const date=document.getElementById('expenseDate').value;
     const newExpenses=[];
-    document.querySelectorAll('.expense-entry, #expenseInputs > div').forEach(div=>{
-      const desc=div.querySelector('.expense-desc').value.trim();
-      const amount=parseFloat(div.querySelector('.expense-amount').value)||0;
-      const cat=div.querySelector('.expense-amount').dataset.cat;
+    document.querySelectorAll('#expenseCards .card-grid-item').forEach(card=>{
+      const desc=card.querySelector('.expense-desc').value.trim();
+      const amount=parseFloat(card.querySelector('.expense-amount').value)||0;
+      const cat=card.querySelector('.expense-amount').dataset.cat;
       if(amount>0) newExpenses.push({cat,desc,amount,date});
     });
     if(newExpenses.length===0){ alert("الرجاء إدخال مصروف واحد على الأقل"); return; }
@@ -437,4 +436,5 @@ function renderAccountTab(data, uid){
 
 </body>
 </html>
+
 
