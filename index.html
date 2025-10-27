@@ -289,17 +289,10 @@ function renderDailyTab(data, uid){
 
   function refreshList(){
     listDiv.innerHTML='';
-    data.dailyExpenses.forEach((exp,i)=>{
+    data.dailyExpenses.forEach((exp)=>{
       const row=document.createElement('div');
       row.className='card card-royal mb-2';
       row.innerHTML=`<strong>${exp.date}</strong> - ${exp.cat}: ${exp.amount} ريال (سبب: ${exp.desc})`;
-      const delBtn=document.createElement('button'); delBtn.textContent='حذف'; delBtn.className='btn btn-outline-danger btn-sm mt-1';
-      delBtn.onclick=async ()=>{
-        data.dailyExpenses.splice(i,1);
-        await db.collection('users').doc(uid).update({dailyExpenses:data.dailyExpenses});
-        refreshList();
-      };
-      row.appendChild(delBtn);
       listDiv.appendChild(row);
     });
   }
@@ -320,8 +313,7 @@ function renderDailyTab(data, uid){
   refreshList();
 }
 
-
-// ===== Weekly Tab مع تعديل وحذف المصروفات =====
+// ===== Weekly Tab =====
 function renderWeeklyTab(data){
   const container=document.getElementById('weeklyTab');
   container.style.display='block';
@@ -442,6 +434,7 @@ function renderAccountTab(data, uid){
 
 </body>
 </html>
+
 
 
 
