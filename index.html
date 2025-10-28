@@ -399,6 +399,103 @@ async function deleteExpense(date, cat, index) {
   }
 }
 
+<!-- 💳 صفحة حساباتي -->
+<div id="accountsTab" style="display:none;">
+  <h5 class="mb-3">💳 حساباتي</h5>
+  <div id="accountsContainer" class="d-flex flex-wrap gap-3"></div>
+
+  <div class="mt-4 text-center">
+    <button class="btn btn-primary" onclick="showAddAccountForm()">➕ إضافة بطاقة جديدة</button>
+  </div>
+
+  <!-- نموذج إضافة حساب جديد -->
+  <div id="addAccountForm" class="card card-royal p-3 mt-3" style="display:none;">
+    <h6>إنشاء حساب جديد</h6>
+    <input type="text" id="accountName" class="form-control mb-2" placeholder="اسم الحساب">
+    <input type="number" id="initialBalance" class="form-control mb-2" placeholder="الرصيد المبدئي">
+    <button class="btn btn-success" onclick="addAccount()">إضافة</button>
+    <button class="btn btn-outline-secondary" onclick="cancelAddAccount()">إلغاء</button>
+  </div>
+
+  <!-- نموذج إضافة أموال -->
+  <div id="addMoneyForm" class="card card-royal p-3 mt-3" style="display:none;">
+    <h6>إضافة أموال للحساب</h6>
+    <input type="text" id="moneySource" class="form-control mb-2" placeholder="مصدر المبلغ (اختياري)">
+    <input type="number" id="moneyAmount" class="form-control mb-2" placeholder="المبلغ">
+    <button class="btn btn-success" id="confirmAddMoney">إضافة المبلغ</button>
+    <button class="btn btn-outline-secondary" onclick="cancelAddMoney()">إلغاء</button>
+  </div>
+</div>
+
+<script>
+let accounts = JSON.parse(localStorage.getItem('accounts')) || [];
+let selectedAccountIndex = null;
+
+// عرض الحسابات
+function renderAccounts() {
+  const container = document.getElementById("accountsContainer");
+  container.innerHTML = "";
+  accounts.forEach((acc, index) => {
+    const card = document.createElement("div");
+    card.className = "card card-royal p-3";
+    card.style.width = "280px";
+    card.innerHTML = `
+      <h6>${acc.name}</h6>
+      <p>الرصيد الحالي: <strong>${acc.balance.toFixed(2)}</strong> ريال</p>
+      <button class="btn btn-outline-primary btn-sm" onclick="openAddMoney(${index})">➕ إضافة أموال</button>
+      <button class="btn btn-outline-danger btn-sm" onclick="deleteAccount(${index})">🗑️ حذف</button>
+    `;
+    container.appendChild(card);
+  });
+  localStorage.setItem("accounts", JSON.stringify(accounts));
+}
+
+// إضافة حساب جديد
+function showAddAccountForm() {
+  document.getElementById("addAccountForm").style.display = "block";
+}
+function cancelAddAccount() {
+  document.getElementById("addAccountForm").style.display = "none";
+}
+function addAccount() {
+  const name = document.getElementById("accountName").value.trim();
+  const balance = parseFloat(document.getElementById("initialBalance").value);
+  if (!name || isNaN(balance)) return alert("يرجى إدخال اسم الحساب والمبلغ الصحيح");
+  accounts.push({ name, balance });
+  document.getElementById("accountName").value = "";
+  document.getElementById("initialBalance").value = "";
+  document.getElementById("addAccountForm").style.display = "none";
+  renderAccounts();
+}
+
+// حذف الحساب
+function deleteAccount(index) {
+  if (confirm("هل أنت متأكد من حذف هذا الحساب؟")) {
+    accounts.splice(index, 1);
+    renderAccounts();
+  }
+}
+
+// إضافة أموال
+function openAddMoney(index) {
+  selectedAccountIndex = index;
+  document.getElementById("addMoneyForm").style.display = "block";
+  document.getElementById("confirmAddMoney").onclick = () => addMoney(index);
+}
+function cancelAddMoney() {
+  document.getElementById("addMoneyForm").style.display = "none";
+}
+function addMoney(index) {
+  const source = document.getElementById("moneySource").value.trim();
+  const amount = parseFloat(document.getElementById("moneyAmount").value);
+  if (isNaN(amount) || amount <= 0) return alert("يرجى إدخال مبلغ صحيح");
+  accounts[index].balance += amount;
+  document.getElementById("moneySource").value = "";
+  document.getElementById("moneyAmount").value = "";
+  document.getElementById("addMoneyForm").style.display = "none";
+  renderAccounts();
+}
+</script>
 
 
 // ===== Account Tab =====
@@ -446,6 +543,7 @@ function renderAccountTab(data, uid){
 
 </body>
 </html>
+
 
 
 
