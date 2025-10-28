@@ -13,7 +13,7 @@
 :root{
   --main-blue:#3b6bff;
   --light-gray:#f5f5f5;
-  --card-shadow:0 6px 18px rgba(0,0,128,0.1);
+  --card-shadow:0 6px 18px rgba(0,0,128,0.08);
   --accent-text:#2c003e;
 }
 body{
@@ -46,7 +46,7 @@ body{
   margin-bottom:20px;
   box-shadow:var(--card-shadow);
 }
-input:focus, .form-control:focus{
+input:focus, .form-control:focus, select:focus{
   box-shadow:none;
   border-color: var(--main-blue);
 }
@@ -64,7 +64,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   box-shadow:var(--card-shadow);
   transition:0.2s;
 }
-.card-grid-item:hover{transform:translateY(-3px); box-shadow:0 10px 20px rgba(0,0,128,0.15);}
+.card-grid-item:hover{transform:translateY(-3px); box-shadow:0 10px 20px rgba(0,0,128,0.12);}
 .category-name{font-weight:bold; line-height:38px;}
 .bottom-nav{
   position:fixed;
@@ -91,6 +91,39 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   .cards-grid{flex-wrap:nowrap;}
   .card-grid-item{flex:1; margin:10px;}
 }
+
+/* حساباتي — بطاقات بنكية */
+.accounts-grid{display:flex; gap:16px; flex-wrap:wrap;}
+.bank-card{
+  width:280px;
+  height:160px;
+  border-radius:14px;
+  color:white;
+  padding:14px;
+  position:relative;
+  box-shadow:0 6px 20px rgba(0,0,0,0.12);
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+.bank-card .card-top{display:flex; justify-content:space-between; align-items:start;}
+.bank-card .card-balance{font-size:20px; font-weight:700;}
+.bank-card .card-name{font-size:14px;}
+.bank-card .card-logo{width:52px; height:32px; opacity:0.95;}
+.bank-actions{display:flex; gap:8px; margin-top:8px;}
+.small-btn{padding:6px 8px; border-radius:8px; font-size:13px; border:none; cursor:pointer;}
+.small-btn.primary{background:rgba(255,255,255,0.12); color:#fff;}
+.small-btn.danger{background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.08);}
+
+/* gradients */
+.grad-blue{background:linear-gradient(135deg,#2b6df6,#4369ff);}
+.grad-purple{background:linear-gradient(135deg,#7b61ff,#d66bff);}
+.grad-gold{background:linear-gradient(135deg,#f59e0b,#f97316);}
+
+/* responsive */
+@media(max-width:540px){
+  .bank-card{width:92%; height:150px;}
+}
 .expense-entry{
   display:flex;
   gap:5px;
@@ -111,17 +144,19 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 
 <div id="authContainer"></div>
 
-<div id="app" style="display:none; max-width:900px; margin:0 auto; padding-bottom:80px;">
+<div id="app" style="display:none; max-width:1000px; margin:0 auto; padding-bottom:120px;">
   <div id="welcomeUser" class="h5 mb-3 text-center"></div>
 
   <div id="dailyTab" class="tabContent"></div>
   <div id="weeklyTab" class="tabContent"></div>
+  <div id="accountsTab" class="tabContent"></div>
   <div id="accountTab" class="tabContent"></div>
 
   <div class="bottom-nav">
-    <div data-tab="dailyTab" class="active">🏷️ المصاريف اليومية</div>
-    <div data-tab="weeklyTab">📊 التحليلات الأسبوعية</div>
-    <div data-tab="accountTab">⚙️ حسابك</div>
+    <div data-tab="daily" class="active">🏷️ المصاريف اليومية</div>
+    <div data-tab="weekly">📊 التحليلات الأسبوعية</div>
+    <div data-tab="accounts">💳 حساباتي</div>
+    <div data-tab="account">⚙️ حسابك</div>
     <div onclick="logout()">🚪 خروج</div>
   </div>
 </div>
@@ -142,6 +177,9 @@ const db=firebase.firestore();
 const authContainer=document.getElementById('authContainer');
 const app=document.getElementById('app');
 const welcomeUser=document.getElementById('welcomeUser');
+
+// ACCOUNTS stored in localStorage under key 'cvm_accounts'
+let accounts = JSON.parse(localStorage.getItem('cvm_accounts')) || [];
 
 // ===== Login / Signup =====
 function showLogin(){
@@ -177,9 +215,13 @@ function logout(){ auth.signOut(); }
 document.querySelectorAll('.bottom-nav div[data-tab]').forEach(btn=>{
   btn.addEventListener('click',()=>{
     document.querySelectorAll('.tabContent').forEach(tc=>tc.style.display='none');
-    document.getElementById(btn.dataset.tab).style.display='block';
+    document.getElementById(btn.dataset.tab+'Tab').style.display='block';
     document.querySelectorAll('.bottom-nav div').forEach(d=>d.classList.remove('active'));
     btn.classList.add('active');
+    // When switching to accounts or daily, refresh UI
+    if(btn.dataset.tab==='accounts') renderAccounts();
+    if(btn.dataset.tab==='daily') { /* nothing extra */ }
+    if(btn.dataset.tab==='weekly') { /* nothing extra */ }
   });
 });
 
@@ -210,7 +252,9 @@ async function loadUserData(uid){
   renderDailyTab(data, uid);
   renderWeeklyTab(data, uid);
   renderAccountTab(data, uid);
-  document.querySelector('.bottom-nav div[data-tab="dailyTab"]').click();
+  // ensure accounts UI is in sync
+  renderAccounts();
+  document.querySelector('.bottom-nav div[data-tab="daily"]').click();
 }
 
 // ===== Initial Setup =====
@@ -218,7 +262,7 @@ function renderInitialSetup(uid, data){
   const container=document.getElementById('dailyTab');
   container.style.display='block';
   container.innerHTML=`
-    <div class="card card-royal mx-auto" style="max-width:500px;">
+    <div class="card card-royal mx-auto" style="max-width:520px;">
       <h5>الخطوة 1: بيانات الراتب والدخل</h5>
       <input type="number" id="salaryInput" class="form-control mb-2" placeholder="راتبك الأساسي" value="${data.salary||''}">
       <input type="number" id="incomeInput" class="form-control mb-2" placeholder="مصادر دخل أخرى" value="${data.incomeSources||''}">
@@ -268,21 +312,30 @@ function renderInitialSetup(uid, data){
 function renderDailyTab(data, uid){
   const container=document.getElementById('dailyTab');
   container.style.display='block';
+  // build account options for select
+  const accOptions = accounts.map(a=>`<option value="${a.name}">${a.name} — ${a.balance.toFixed(2)} ريال</option>`).join('');
   container.innerHTML=`
-    <h5 class="mb-3 text-center">🏷️ تسجيل المصاريف اليومية</h5>
-    <label>اختر التاريخ:</label>
-    <input type="date" id="expenseDate" class="form-control mb-3" value="${new Date().toISOString().split('T')[0]}">
-    <div class="mb-3">
-      <label>اختر القسم:</label>
-      <select id="expenseCategory" class="form-select mb-2">
-        ${Object.keys(data.categories).map(cat=>`<option value="${cat}">${cat}</option>`).join('')}
-      </select>
-      <input type="number" id="expenseAmount" class="form-control mb-2" placeholder="المبلغ">
-      <input type="text" id="expenseDesc" class="form-control mb-2" placeholder="لِماذا تم الصرف؟">
-      <button id="addExpenseBtn" class="btn btn-main w-100">حفظ المصروف</button>
+    <div class="card card-royal" style="max-width:720px; margin:auto;">
+      <h5 class="mb-3 text-center">🏷️ تسجيل المصاريف اليومية</h5>
+      <label>اختر التاريخ:</label>
+      <input type="date" id="expenseDate" class="form-control mb-3" value="${new Date().toISOString().split('T')[0]}">
+      <div class="mb-3">
+        <label>اختر الحساب (من أي حساب سيتم السحب):</label>
+        <select id="expenseAccount" class="form-select mb-2">
+          <option value="">-- اختر حساب --</option>
+          ${accOptions}
+        </select>
+        <label>اختر القسم:</label>
+        <select id="expenseCategory" class="form-select mb-2">
+          ${Object.keys(data.categories).map(cat=>`<option value="${cat}">${cat}</option>`).join('')}
+        </select>
+        <input type="number" id="expenseAmount" class="form-control mb-2" placeholder="المبلغ">
+        <input type="text" id="expenseDesc" class="form-control mb-2" placeholder="لِماذا تم الصرف؟">
+        <button id="addExpenseBtn" class="btn btn-main w-100">حفظ المصروف</button>
+      </div>
+      <h6 class="mt-3">المصاريف المسجلة:</h6>
+      <div id="dailyExpensesList"></div>
     </div>
-    <h6 class="mt-3">المصاريف المسجلة:</h6>
-    <div id="dailyExpensesList"></div>
   `;
 
   const listDiv=document.getElementById('dailyExpensesList');
@@ -292,7 +345,7 @@ function renderDailyTab(data, uid){
     data.dailyExpenses.forEach((exp)=>{
       const row=document.createElement('div');
       row.className='card card-royal mb-2';
-      row.innerHTML=`<strong>${exp.date}</strong> - ${exp.cat}: ${exp.amount} ريال (سبب: ${exp.desc})`;
+      row.innerHTML=`<strong>${exp.date}</strong> - ${exp.cat}: ${exp.amount} ريال (سبب: ${exp.desc}) — حساب: ${exp.acc||'غير محدد'}`;
       listDiv.appendChild(row);
     });
   }
@@ -302,12 +355,24 @@ function renderDailyTab(data, uid){
     const cat=document.getElementById('expenseCategory').value;
     const amount=parseFloat(document.getElementById('expenseAmount').value)||0;
     const desc=document.getElementById('expenseDesc').value.trim();
+    const accName=document.getElementById('expenseAccount').value;
     if(amount<=0 || !desc){ alert("الرجاء إدخال المبلغ والسبب"); return; }
-    data.dailyExpenses.push({date,cat,amount,desc});
+    // deduct from account if selected
+    if(accName){
+      const idx = accounts.findIndex(a=>a.name===accName);
+      if(idx!==-1){
+        accounts[idx].balance = parseFloat((accounts[idx].balance - amount).toFixed(2));
+        localStorage.setItem('cvm_accounts', JSON.stringify(accounts));
+      }
+    }
+    // push expense with acc field
+    data.dailyExpenses.push({date,cat,amount,desc,acc:accName});
     await db.collection('users').doc(uid).update({dailyExpenses:data.dailyExpenses});
     document.getElementById('expenseAmount').value='';
     document.getElementById('expenseDesc').value='';
     refreshList();
+    // refresh accounts UI if visible
+    renderAccounts();
   };
 
   refreshList();
@@ -349,6 +414,7 @@ function renderWeeklyTab(data){
         <div style="flex:2">${e.cat} — ${e.desc}</div>
         <div style="flex:1">${e.amount} ريال</div>
         <div style="flex:1">باقي: ${remaining} ريال</div>
+        <div style="flex:1">💳 ${e.acc||'—'}</div>
         <div class="expense-actions">
           <button class="btn btn-outline-danger btn-sm" onclick="deleteExpense('${e.date}','${e.cat}',${i})">حذف</button>
         </div>
@@ -377,13 +443,23 @@ async function deleteExpense(date, cat, index) {
     return;
   }
 
+  // if expense had an account, refund amount to that account locally
+  if(expenseToDelete.acc){
+    const accIndex = accounts.findIndex(a=>a.name===expenseToDelete.acc);
+    if(accIndex!==-1){
+      accounts[accIndex].balance = parseFloat((accounts[accIndex].balance + expenseToDelete.amount).toFixed(2));
+      localStorage.setItem('cvm_accounts', JSON.stringify(accounts));
+    }
+  }
+
   // تحديد الموقع الحقيقي داخل المصفوفة الأصلية
   const realIndex = data.dailyExpenses.findIndex(
     x =>
       x.date === expenseToDelete.date &&
       x.cat === expenseToDelete.cat &&
       x.amount === expenseToDelete.amount &&
-      x.desc === expenseToDelete.desc
+      x.desc === expenseToDelete.desc &&
+      x.acc === expenseToDelete.acc
   );
 
   if (realIndex !== -1) {
@@ -394,111 +470,174 @@ async function deleteExpense(date, cat, index) {
     alert("🗑️ تم حذف المصروف بنجاح");
     // إعادة تحميل البيانات
     loadUserData(uid);
+    // refresh accounts UI
+    renderAccounts();
   } else {
     alert("لم يتم العثور على المصروف لحذفه");
   }
 }
 
-<!-- 💳 صفحة حساباتي -->
-<div id="accountsTab" style="display:none;">
-  <h5 class="mb-3">💳 حساباتي</h5>
-  <div id="accountsContainer" class="d-flex flex-wrap gap-3"></div>
+/* ======= حساباتي (Bank-style cards) ======= */
+function renderAccounts(){
+  const container=document.getElementById('accountsTab');
+  container.style.display='block';
+  // container inner for accounts tab
+  const existing = document.getElementById('accountsInner');
+  if(!existing){
+    // build accounts tab layout once
+    document.getElementById('accountsTab').innerHTML = `
+      <h5 class="mb-3">💳 حساباتي</h5>
+      <div id="accountsInner">
+        <div id="accountsGrid" class="accounts-grid mb-3"></div>
+        <div class="mt-2">
+          <button class="btn btn-main" onclick="showAddAccountForm()">➕ إضافة بطاقة جديدة</button>
+        </div>
 
-  <div class="mt-4 text-center">
-    <button class="btn btn-primary" onclick="showAddAccountForm()">➕ إضافة بطاقة جديدة</button>
-  </div>
+        <div id="addAccountBox" class="card card-royal mt-3" style="display:none; max-width:520px;">
+          <h6>إنشاء بطاقة / حساب جديد</h6>
+          <input id="newAccountName" class="form-control mb-2" placeholder="اسم الحساب (مثلاً: الحساب الرئيسي)">
+          <input id="newAccountBalance" class="form-control mb-2" placeholder="الرصيد المبدئي" type="number">
+          <select id="newAccountType" class="form-select mb-2">
+            <option value="visa">VISA</option>
+            <option value="master">MasterCard</option>
+          </select>
+          <div class="d-flex gap-2">
+            <button class="btn btn-main" onclick="confirmAddAccount()">إضافة البطاقة</button>
+            <button class="btn btn-outline-secondary" onclick="cancelAddAccountForm()">إلغاء</button>
+          </div>
+        </div>
 
-  <!-- نموذج إضافة حساب جديد -->
-  <div id="addAccountForm" class="card card-royal p-3 mt-3" style="display:none;">
-    <h6>إنشاء حساب جديد</h6>
-    <input type="text" id="accountName" class="form-control mb-2" placeholder="اسم الحساب">
-    <input type="number" id="initialBalance" class="form-control mb-2" placeholder="الرصيد المبدئي">
-    <button class="btn btn-success" onclick="addAccount()">إضافة</button>
-    <button class="btn btn-outline-secondary" onclick="cancelAddAccount()">إلغاء</button>
-  </div>
-
-  <!-- نموذج إضافة أموال -->
-  <div id="addMoneyForm" class="card card-royal p-3 mt-3" style="display:none;">
-    <h6>إضافة أموال للحساب</h6>
-    <input type="text" id="moneySource" class="form-control mb-2" placeholder="مصدر المبلغ (اختياري)">
-    <input type="number" id="moneyAmount" class="form-control mb-2" placeholder="المبلغ">
-    <button class="btn btn-success" id="confirmAddMoney">إضافة المبلغ</button>
-    <button class="btn btn-outline-secondary" onclick="cancelAddMoney()">إلغاء</button>
-  </div>
-</div>
-
-<script>
-let accounts = JSON.parse(localStorage.getItem('accounts')) || [];
-let selectedAccountIndex = null;
-
-// عرض الحسابات
-function renderAccounts() {
-  const container = document.getElementById("accountsContainer");
-  container.innerHTML = "";
-  accounts.forEach((acc, index) => {
-    const card = document.createElement("div");
-    card.className = "card card-royal p-3";
-    card.style.width = "280px";
-    card.innerHTML = `
-      <h6>${acc.name}</h6>
-      <p>الرصيد الحالي: <strong>${acc.balance.toFixed(2)}</strong> ريال</p>
-      <button class="btn btn-outline-primary btn-sm" onclick="openAddMoney(${index})">➕ إضافة أموال</button>
-      <button class="btn btn-outline-danger btn-sm" onclick="deleteAccount(${index})">🗑️ حذف</button>
+        <div id="addMoneyBox" class="card card-royal mt-3" style="display:none; max-width:520px;">
+          <h6>إضافة أموال</h6>
+          <p id="targetAcctLabel"></p>
+          <input id="moneySourceInput" class="form-control mb-2" placeholder="المصدر (اختياري)">
+          <input id="moneyAmountInput" class="form-control mb-2" placeholder="المبلغ" type="number">
+          <div class="d-flex gap-2">
+            <button class="btn btn-main" id="confirmAddMoneyBtn">إضافة</button>
+            <button class="btn btn-outline-secondary" onclick="cancelAddMoneyForm()">إلغاء</button>
+          </div>
+        </div>
+      </div>
     `;
-    container.appendChild(card);
-  });
-  localStorage.setItem("accounts", JSON.stringify(accounts));
-}
-
-// إضافة حساب جديد
-function showAddAccountForm() {
-  document.getElementById("addAccountForm").style.display = "block";
-}
-function cancelAddAccount() {
-  document.getElementById("addAccountForm").style.display = "none";
-}
-function addAccount() {
-  const name = document.getElementById("accountName").value.trim();
-  const balance = parseFloat(document.getElementById("initialBalance").value);
-  if (!name || isNaN(balance)) return alert("يرجى إدخال اسم الحساب والمبلغ الصحيح");
-  accounts.push({ name, balance });
-  document.getElementById("accountName").value = "";
-  document.getElementById("initialBalance").value = "";
-  document.getElementById("addAccountForm").style.display = "none";
-  renderAccounts();
-}
-
-// حذف الحساب
-function deleteAccount(index) {
-  if (confirm("هل أنت متأكد من حذف هذا الحساب؟")) {
-    accounts.splice(index, 1);
-    renderAccounts();
   }
+
+  // render grid
+  const grid = document.getElementById('accountsGrid');
+  grid.innerHTML = '';
+  // ensure accounts persisted
+  accounts = JSON.parse(localStorage.getItem('cvm_accounts')) || accounts;
+  if(accounts.length===0){
+    grid.innerHTML = `<div class="card card-royal">لا توجد حسابات بعد — أضيفي بطاقة جديدة.</div>`;
+  } else {
+    accounts.forEach((acc, idx)=>{
+      // choose gradient and logo
+      let cls = 'grad-blue', logo='visa';
+      if(acc.style==='purple'){ cls='grad-purple'; logo='visa'; }
+      if(acc.style==='gold'){ cls='grad-gold'; logo='master'; }
+      // fallback if not set
+      if(!acc.style){
+        // alternate styles
+        cls = ['grad-blue','grad-purple','grad-gold'][idx % 3];
+        acc.style = (idx % 3===0? 'blue': (idx%3===1?'purple':'gold'));
+      }
+      const card = document.createElement('div');
+      card.className = 'bank-card '+cls;
+      card.innerHTML = `
+        <div class="card-top">
+          <div>
+            <div class="card-name">${acc.name}</div>
+          </div>
+          <div><img class="card-logo" src="${logo === 'visa' ? 'https://upload.wikimedia.org/wikipedia/commons/5/52/Visa_2014_logo_detail.svg' : 'https://upload.wikimedia.org/wikipedia/commons/0/04/Mastercard-logo.png'}" alt="${logo}"></div>
+        </div>
+        <div>
+          <div class="card-balance">${acc.balance.toFixed(2)} ريال</div>
+        </div>
+        <div class="bank-actions">
+          <button class="small-btn primary" onclick="openAddMoney(${idx})">➕ إضافة أموال</button>
+          <button class="small-btn primary" onclick="showAccountDetails(${idx})">🧾 تفاصيل</button>
+          <button class="small-btn danger" onclick="deleteAccount(${idx})">🗑️ حذف</button>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+  }
+  // persist accounts
+  localStorage.setItem('cvm_accounts', JSON.stringify(accounts));
+  // also update daily expense account select options if daily tab exists
+  updateExpenseAccountSelect();
 }
 
-// إضافة أموال
-function openAddMoney(index) {
-  selectedAccountIndex = index;
-  document.getElementById("addMoneyForm").style.display = "block";
-  document.getElementById("confirmAddMoney").onclick = () => addMoney(index);
+function showAddAccountForm(){
+  document.getElementById('addAccountBox').style.display='block';
+  document.getElementById('addMoneyBox').style.display='none';
 }
-function cancelAddMoney() {
-  document.getElementById("addMoneyForm").style.display = "none";
+function cancelAddAccountForm(){
+  document.getElementById('addAccountBox').style.display='none';
 }
-function addMoney(index) {
-  const source = document.getElementById("moneySource").value.trim();
-  const amount = parseFloat(document.getElementById("moneyAmount").value);
-  if (isNaN(amount) || amount <= 0) return alert("يرجى إدخال مبلغ صحيح");
-  accounts[index].balance += amount;
-  document.getElementById("moneySource").value = "";
-  document.getElementById("moneyAmount").value = "";
-  document.getElementById("addMoneyForm").style.display = "none";
+function confirmAddAccount(){
+  const name = document.getElementById('newAccountName').value.trim();
+  const bal = parseFloat(document.getElementById('newAccountBalance').value) || 0;
+  const type = document.getElementById('newAccountType').value;
+  if(!name) return alert("أدخلي اسم البطاقة");
+  const style = (type==='visa' ? 'blue' : 'gold');
+  accounts.push({name, balance:bal, style});
+  localStorage.setItem('cvm_accounts', JSON.stringify(accounts));
+  document.getElementById('newAccountName').value='';
+  document.getElementById('newAccountBalance').value='';
+  document.getElementById('addAccountBox').style.display='none';
   renderAccounts();
 }
-</script>
 
+function deleteAccount(idx){
+  if(!confirm("هل تريدين حذف هذه البطاقة؟ سيتم حذف كل السجلات المرتبطة محليًا فقط.")) return;
+  accounts.splice(idx,1);
+  localStorage.setItem('cvm_accounts', JSON.stringify(accounts));
+  renderAccounts();
+}
 
-// ===== Account Tab =====
+function openAddMoney(idx){
+  document.getElementById('addAccountBox') && (document.getElementById('addAccountBox').style.display='none');
+  document.getElementById('addMoneyBox').style.display='block';
+  document.getElementById('targetAcctLabel').textContent = `إضافة أموال إلى: ${accounts[idx].name}`;
+  const btn = document.getElementById('confirmAddMoneyBtn');
+  btn.onclick = ()=>{
+    const src = document.getElementById('moneySourceInput').value.trim();
+    const amt = parseFloat(document.getElementById('moneyAmountInput').value);
+    if(isNaN(amt) || amt<=0) return alert("أدخلي مبلغ صحيح");
+    accounts[idx].balance = parseFloat((accounts[idx].balance + amt).toFixed(2));
+    localStorage.setItem('cvm_accounts', JSON.stringify(accounts));
+    document.getElementById('moneySourceInput').value='';
+    document.getElementById('moneyAmountInput').value='';
+    document.getElementById('addMoneyBox').style.display='none';
+    renderAccounts();
+  };
+}
+function cancelAddMoneyForm(){
+  document.getElementById('addMoneyBox').style.display='none';
+}
+
+function showAccountDetails(idx){
+  const acc = accounts[idx];
+  alert(`تفاصيل البطاقة:\n\nالاسم: ${acc.name}\nالرصيد: ${acc.balance.toFixed(2)} ريال`);
+}
+
+function updateExpenseAccountSelect(){
+  // update the select in dailyTab if present
+  const sel = document.getElementById('expenseAccount');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">-- اختر حساب --</option>';
+  accounts.forEach(a=>{
+    const opt = document.createElement('option');
+    opt.value = a.name;
+    opt.textContent = `${a.name} — ${a.balance.toFixed(2)} ريال`;
+    sel.appendChild(opt);
+  });
+}
+
+// ensure if user navigates directly to accounts tab we render
+document.addEventListener('visibilitychange', ()=>{ /* noop */ });
+
+// ===== Account Tab (existing settings) =====
 function renderAccountTab(data, uid){
   const container=document.getElementById('accountTab');
   container.style.display='block';
@@ -543,12 +682,3 @@ function renderAccountTab(data, uid){
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
