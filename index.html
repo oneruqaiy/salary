@@ -269,7 +269,7 @@ document.querySelectorAll('.bottom-nav div[data-tab]').forEach(btn=>{
     const uid = auth.currentUser ? auth.currentUser.uid : null;
     if(uid){
       if(btn.dataset.tab==='accounts') renderAccounts();
-      // إعادة تحميل البيانات لضمان تحديث الداشبورد والرسوم البيانية
+      // ⭐️⭐️⭐️ التعديل هنا: منع تبديل التاب القسري (forceTabSwitch = false) ⭐️⭐️⭐️
       if(btn.dataset.tab==='daily' || btn.dataset.tab==='weekly') loadUserData(uid, false); 
     }
   });
@@ -289,7 +289,8 @@ auth.onAuthStateChanged(user=>{
 });
 
 // Load User Data
-async function loadUserData(uid){
+// ⭐️⭐️⭐️ التعديل هنا: إضافة forceTabSwitch لمنع التحديث اللانهائي ⭐️⭐️⭐️
+async function loadUserData(uid, forceTabSwitch = true){
   const docSnap = await db.collection('users').doc(uid).get();
   if(!docSnap.exists){ alert("خطأ: البيانات غير موجودة"); return; }
   const data=docSnap.data();
@@ -307,11 +308,12 @@ async function loadUserData(uid){
   renderAccountTab(data, uid);
   renderAccounts(); // Ensure accounts tab is ready
 
-  // ⭐️⭐️⭐️ تصحيح مشكلة التنقل ⭐️⭐️⭐️
-  // تأخير النقر لضمان تهيئة عناصر DOM قبل النقر الافتراضي
-  setTimeout(() => {
-    document.querySelector('.bottom-nav div[data-tab="daily"]').click();
-  }, 10);
+  // النقر يتم فقط عند تسجيل الدخول أو الإعداد الأولي
+  if(forceTabSwitch){
+    setTimeout(() => {
+      document.querySelector('.bottom-nav div[data-tab="daily"]').click();
+    }, 10);
+  }
 }
 
 // =================================================================
@@ -541,7 +543,8 @@ function renderDailyTab(data, uid){
     // Clear form and refresh UI
     document.getElementById('expenseAmount').value='';
     document.getElementById('expenseDesc').value='';
-    loadUserData(uid); // Re-load data to update dashboard and list
+    // ⭐️ منع forceTabSwitch لمنع التحديث اللانهائي: 
+    loadUserData(uid, false); 
   };
 
   refreshList();
@@ -601,7 +604,7 @@ function renderWeeklyTab(data, uid){
                 <div class="small text-secondary">💳 ${e.acc||'—'}</div>
             </div>
             <div class="exp-amount">${e.amount.toFixed(2)} ريال</div>
-            <button class="btn btn-outline-danger btn-sm ms-2" title="حذف المصروف" onclick="deleteExpense('${e.date}', '${e.cat}', ${e.timestamp}, ${e.amount})"><i class="fas fa-trash-alt"></i></button>
+            <button class="btn btn-outline-danger btn-sm ms-2" title="حذف المصروف" onclick="deleteExpense('${e.date}', '${e.cat}', ${e.timestamp}, ${e.amount}, '${e.acc || ''}')"><i class="fas fa-trash-alt"></i></button>
         `;
         dayDiv.appendChild(div);
         totalWeeklySpent+=e.amount;
@@ -641,6 +644,10 @@ function renderWeeklyTab(data, uid){
   const chartLabels = Object.keys(data.categories);
   const chartData = chartLabels.map(cat => totalSpentPerCategory[cat]);
   
+  // Destroy old chart instance if it exists
+  const oldChart = Chart.getChart("categoryChart");
+  if (oldChart) { oldChart.destroy(); }
+
   new Chart(document.getElementById('categoryChart').getContext('2d'), {
     type: 'pie',
     data: {
@@ -670,7 +677,7 @@ function renderWeeklyTab(data, uid){
 }
 
 // ===== Delete Expense Function (Improved Logic) =====
-async function deleteExpense(date, cat, timestamp, amount) {
+async function deleteExpense(date, cat, timestamp, amount, accName) { // ⭐️ تم تعديل الدالة لاستقبال اسم الحساب
   if (!confirm("هل أنت متأكد من حذف هذا المصروف؟ سيتم استرجاع المبلغ إلى الحساب المصرفي إذا كان محددًا.")) return;
 
   const uid = auth.currentUser.uid;
@@ -684,13 +691,12 @@ async function deleteExpense(date, cat, timestamp, amount) {
   );
 
   if (realIndex !== -1) {
-    const expenseToDelete = data.dailyExpenses[realIndex];
-
+    
     // Refund amount to account if specified
-    if(expenseToDelete.acc){
-      const accIndex = accounts.findIndex(a=>a.name===expenseToDelete.acc);
+    if(accName){
+      const accIndex = accounts.findIndex(a=>a.name===accName);
       if(accIndex!==-1){
-        accounts[accIndex].balance = parseFloat((accounts[accIndex].balance + expenseToDelete.amount).toFixed(2));
+        accounts[accIndex].balance = parseFloat((accounts[accIndex].balance + amount).toFixed(2));
         localStorage.setItem('cvm_accounts', JSON.stringify(accounts));
       }
     }
@@ -700,8 +706,8 @@ async function deleteExpense(date, cat, timestamp, amount) {
     await docRef.update({ dailyExpenses: data.dailyExpenses });
     alert("🗑️ تم حذف المصروف بنجاح");
     
-    // Refresh all UI elements
-    loadUserData(uid); 
+    // Refresh all UI elements, but DO NOT force tab switch
+    loadUserData(uid, false); 
   } else {
     alert("❌ لم يتم العثور على المصروف لحذفه");
   }
