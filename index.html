@@ -182,12 +182,10 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 
   <div class="bottom-nav">
     <div data-tab="daily" class="active"><i class="fas fa-wallet"></i> المصاريف اليومية</div>
-    <div data-tab="weekly"><i class="fas fa-chart-bar"></i> التحليلات الأسبوعية</div>
-    <div data-tab="accounts"><i class="fas fa-credit-card"></i> حساباتي</div>
-    <div data-tab="account"><i class="fas fa-cog"></i> حسابك</div>
+    <div data-tab="accounts"><i class="fas fa-credit-card"></i> حساباتي</div>          <div data-tab="weekly"><i class="fas fa-chart-bar"></i> التحليلات الأسبوعية</div>  <div data-tab="account"><i class="fas fa-cog"></i> حسابك</div>
     <div onclick="logout()"><i class="fas fa-sign-out-alt"></i> خروج</div>
   </div>
-</div>
+  </div>
 
 <script>
 // =================================================================
@@ -269,7 +267,7 @@ document.querySelectorAll('.bottom-nav div[data-tab]').forEach(btn=>{
     const uid = auth.currentUser ? auth.currentUser.uid : null;
     if(uid){
       if(btn.dataset.tab==='accounts') renderAccounts();
-      // ⭐️⭐️⭐️ التعديل هنا: منع تبديل التاب القسري (forceTabSwitch = false) ⭐️⭐️⭐️
+      // منع تبديل التاب القسري (forceTabSwitch = false) 
       if(btn.dataset.tab==='daily' || btn.dataset.tab==='weekly') loadUserData(uid, false); 
     }
   });
@@ -289,7 +287,6 @@ auth.onAuthStateChanged(user=>{
 });
 
 // Load User Data
-// ⭐️⭐️⭐️ التعديل هنا: إضافة forceTabSwitch لمنع التحديث اللانهائي ⭐️⭐️⭐️
 async function loadUserData(uid, forceTabSwitch = true){
   const docSnap = await db.collection('users').doc(uid).get();
   if(!docSnap.exists){ alert("خطأ: البيانات غير موجودة"); return; }
@@ -543,7 +540,7 @@ function renderDailyTab(data, uid){
     // Clear form and refresh UI
     document.getElementById('expenseAmount').value='';
     document.getElementById('expenseDesc').value='';
-    // ⭐️ منع forceTabSwitch لمنع التحديث اللانهائي: 
+    // منع forceTabSwitch لمنع التحديث اللانهائي: 
     loadUserData(uid, false); 
   };
 
@@ -677,7 +674,7 @@ function renderWeeklyTab(data, uid){
 }
 
 // ===== Delete Expense Function (Improved Logic) =====
-async function deleteExpense(date, cat, timestamp, amount, accName) { // ⭐️ تم تعديل الدالة لاستقبال اسم الحساب
+async function deleteExpense(date, cat, timestamp, amount, accName) { 
   if (!confirm("هل أنت متأكد من حذف هذا المصروف؟ سيتم استرجاع المبلغ إلى الحساب المصرفي إذا كان محددًا.")) return;
 
   const uid = auth.currentUser.uid;
