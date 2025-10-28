@@ -435,10 +435,14 @@ function renderInitialSetup(uid, data){
 function renderDailyTab(data, uid){
   const container=document.getElementById('dailyTab');
   // Calculation Summary
-  const netSalary = data.salary + data.incomeSources - data.loans;
-  const categoriesTotal = Object.values(data.categories).reduce((sum, val)=>sum+val, 0);
-  const totalSpent = data.dailyExpenses.reduce((sum, exp)=>sum+exp.amount, 0);
-  const currentRemaining = categoriesTotal - totalSpent;
+  const netSalary = data.salary + data.incomeSources - data.loans; // صافي الدخل
+  const categoriesTotal = Object.values(data.categories).reduce((sum, val)=>sum+val, 0); 
+  const totalSpent = data.dailyExpenses.reduce((sum, exp)=>sum+exp.amount, 0); // إجمالي المصاريف
+  
+  // ⭐️⭐️⭐️ التعديل هنا لتطبيق الحسبة الجديدة: صافي الدخل - إجمالي المصاريف ⭐️⭐️⭐️
+  const currentRemaining = netSalary - totalSpent; 
+  // ⭐️⭐️⭐️ نهاية التعديل ⭐️⭐️⭐️
+
   const today = new Date().toISOString().split('T')[0];
 
   // build account options for select
@@ -451,7 +455,7 @@ function renderDailyTab(data, uid){
         <span>${netSalary.toFixed(2)} ريال</span>
       </div>
       <div class="dashboard-item db-secondary">
-        <h6>الميزانية المتبقية</h6>
+        <h6>الميزانية المتبقية (صافي الدخل - المصاريف)</h6>
         <span>${currentRemaining.toFixed(2)} ريال</span>
       </div>
       <div class="dashboard-item db-danger">
@@ -615,7 +619,7 @@ function renderWeeklyTab(data, uid){
   }
   
   // Overall category summary
-  let categorySummaryHTML = '<div class="card card-royal mt-3"><h6>مقارنة الميزانية المتبقية</h6>';
+  let categorySummaryHTML = '<div class="card card-royal mt-3"><h6>مقارنة الميزانية المتبقية حسب القسم</h6>';
   for(const cat in data.categories){
       const allocated = data.categories[cat];
       const spent = totalSpentPerCategory[cat];
