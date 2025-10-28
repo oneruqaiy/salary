@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>راتــب</title>
+<title>راتــب | إدارة المصاريف</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -15,12 +16,15 @@
   --light-gray:#f5f5f5;
   --card-shadow:0 6px 18px rgba(0,0,128,0.08);
   --accent-text:#2c003e;
+  --success-green:#28a745;
+  --danger-red:#dc3545;
 }
 body{
   margin:0;
   font-family:"Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   background: var(--light-gray);
   color: var(--accent-text);
+  padding-top:10px; /* Space from top */
 }
 #authContainer{
   max-width:400px;
@@ -37,6 +41,7 @@ body{
 }
 .btn-main:hover{
   background:#5a82ff;
+  color:#fff;
 }
 .card-royal{
   background:#fff;
@@ -47,25 +52,11 @@ body{
   box-shadow:var(--card-shadow);
 }
 input:focus, .form-control:focus, select:focus{
-  box-shadow:none;
-  border-color: var(--main-blue);
+  box-shadow:0 0 0 0.25rem rgba(59, 107, 255, 0.25) !important;
+  border-color: var(--main-blue) !important;
 }
 input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
 .tabContent{display:none; padding-top:10px;}
-.cards-grid{display:flex; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap;}
-.card-grid-item{
-  flex:1 1 45%;
-  background:#fff;
-  border-radius:16px;
-  padding:20px;
-  margin:5px;
-  text-align:center;
-  cursor:pointer;
-  box-shadow:var(--card-shadow);
-  transition:0.2s;
-}
-.card-grid-item:hover{transform:translateY(-3px); box-shadow:0 10px 20px rgba(0,0,128,0.12);}
-.category-name{font-weight:bold; line-height:38px;}
 .bottom-nav{
   position:fixed;
   bottom:0;
@@ -85,15 +76,63 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   cursor:pointer;
   font-size:14px;
   color:#333;
+  transition:color 0.2s;
+}
+.bottom-nav div i{
+    display:block;
+    font-size:18px;
+    margin-bottom:2px;
 }
 .bottom-nav .active{color:var(--main-blue); font-weight:bold;}
-@media(min-width:768px){
-  .cards-grid{flex-wrap:nowrap;}
-  .card-grid-item{flex:1; margin:10px;}
-}
 
-/* حساباتي — بطاقات بنكية */
-.accounts-grid{display:flex; gap:16px; flex-wrap:wrap;}
+/* Dashboard Cards */
+.dashboard-grid{
+    display:flex;
+    gap:10px;
+    margin-bottom:20px;
+    flex-wrap:wrap;
+    justify-content:center;
+}
+.dashboard-item{
+    flex:1 1 30%;
+    min-width:120px;
+    text-align:center;
+    padding:10px;
+    border-radius:12px;
+    color:#fff;
+    font-size:14px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.1);
+}
+.dashboard-item h6{font-size:16px; margin-bottom:5px;}
+.db-main{background:linear-gradient(45deg, #0d6efd, #3b6bff);}
+.db-secondary{background:linear-gradient(45deg, #28a745, #15c363);}
+.db-danger{background:linear-gradient(45deg, #dc3545, #e05361);}
+
+/* Daily and Weekly List */
+.daily-expense-item, .weekly-expense-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:10px 15px;
+    border-bottom:1px solid #eee;
+    font-size:14px;
+}
+.daily-expense-item:last-child, .weekly-expense-item:last-child{border-bottom:none;}
+.exp-details{flex-grow:1; text-align:right;}
+.exp-category{font-weight:bold;}
+.exp-amount{color:var(--danger-red); font-weight:bold;}
+
+/* Weekly Tab Styling */
+.weekly-day-box{padding:10px 15px; margin-bottom:10px; border-radius:12px; background:#fefefe; box-shadow:0 2px 8px rgba(0,0,0,0.05);}
+.weekly-day-box h6{font-size:16px; border-bottom:1px solid #ddd; padding-bottom:5px; margin-bottom:10px; color:var(--main-blue);}
+.category-status{font-size:13px; margin-top:10px; padding-top:5px; border-top:1px dashed #eee;}
+.status-bar-container{background:#eee; border-radius:5px; margin-top:5px; overflow:hidden;}
+.status-bar{height:8px; border-radius:5px 0 0 5px; transition:width 0.5s ease-out;}
+.status-bar.green{background:var(--success-green);}
+.status-bar.red{background:var(--danger-red);}
+
+/* Accounts Tab Styles (Bank Cards) */
+.accounts-grid{display:flex; gap:16px; flex-wrap:wrap; justify-content:center;}
 .bank-card{
   width:280px;
   height:160px;
@@ -107,45 +146,34 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   justify-content:space-between;
 }
 .bank-card .card-top{display:flex; justify-content:space-between; align-items:start;}
-.bank-card .card-balance{font-size:20px; font-weight:700;}
-.bank-card .card-name{font-size:14px;}
-.bank-card .card-logo{width:52px; height:32px; opacity:0.95;}
+.bank-card .card-balance{font-size:24px; font-weight:700;}
+.bank-card .card-name{font-size:14px; opacity:0.8;}
+.bank-card .card-logo{width:52px; height:32px; filter:brightness(0) invert(1); opacity:0.95;}
 .bank-actions{display:flex; gap:8px; margin-top:8px;}
-.small-btn{padding:6px 8px; border-radius:8px; font-size:13px; border:none; cursor:pointer;}
-.small-btn.primary{background:rgba(255,255,255,0.12); color:#fff;}
-.small-btn.danger{background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.08);}
+.small-btn{padding:4px 8px; border-radius:6px; font-size:12px; border:none; cursor:pointer; font-weight:500;}
+.small-btn.primary{background:rgba(255,255,255,0.2); color:#fff; transition:background 0.2s;}
+.small-btn.primary:hover{background:rgba(255,255,255,0.4);}
+.small-btn.danger{background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.08); transition:background 0.2s;}
+.small-btn.danger:hover{background:rgba(255,255,255,0.3);}
 
 /* gradients */
 .grad-blue{background:linear-gradient(135deg,#2b6df6,#4369ff);}
 .grad-purple{background:linear-gradient(135deg,#7b61ff,#d66bff);}
 .grad-gold{background:linear-gradient(135deg,#f59e0b,#f97316);}
 
-/* responsive */
-@media(max-width:540px){
-  .bank-card{width:92%; height:150px;}
+@media(max-width:767px){
+    .dashboard-item{flex:1 1 45%;}
+    .bank-card{width:90%; height:150px;}
+    .bottom-nav div{font-size:12px;}
 }
-.expense-entry{
-  display:flex;
-  gap:5px;
-  margin-bottom:5px;
-}
-.expense-entry input{
-  flex:1;
-}
-.expense-actions{
-  display:flex;
-  gap:5px;
-  margin-top:5px;
-}
-.expense-actions button{flex:1;}
 </style>
 </head>
 <body>
 
 <div id="authContainer"></div>
 
-<div id="app" style="display:none; max-width:1000px; margin:0 auto; padding-bottom:120px;">
-  <div id="welcomeUser" class="h5 mb-3 text-center"></div>
+<div id="app" style="display:none; max-width:1000px; margin:0 auto; padding-bottom:80px;">
+  <div id="welcomeUser" class="h5 mb-3 text-center" style="padding-top:10px;"></div>
 
   <div id="dailyTab" class="tabContent"></div>
   <div id="weeklyTab" class="tabContent"></div>
@@ -153,17 +181,21 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   <div id="accountTab" class="tabContent"></div>
 
   <div class="bottom-nav">
-    <div data-tab="daily" class="active">🏷️ المصاريف اليومية</div>
-    <div data-tab="weekly">📊 التحليلات الأسبوعية</div>
-    <div data-tab="accounts">💳 حساباتي</div>
-    <div data-tab="account">⚙️ حسابك</div>
-    <div onclick="logout()">🚪 خروج</div>
+    <div data-tab="daily" class="active"><i class="fas fa-wallet"></i> المصاريف اليومية</div>
+    <div data-tab="weekly"><i class="fas fa-chart-bar"></i> التحليلات الأسبوعية</div>
+    <div data-tab="accounts"><i class="fas fa-credit-card"></i> حساباتي</div>
+    <div data-tab="account"><i class="fas fa-cog"></i> حسابك</div>
+    <div onclick="logout()"><i class="fas fa-sign-out-alt"></i> خروج</div>
   </div>
 </div>
 
 <script>
+// =================================================================
+// 1. Firebase Configuration & Init
+// =================================================================
 const firebaseConfig = {
-  apiKey:"AIzaSyB-1kkLnKv51PmEmwOIk3gqsigTJOU3Cgw",
+  // قم بتغيير هذه القيم إلى قيم مشروعك الفعلي في Firebase
+  apiKey:"AIzaSyB-1kkLnKv51PmEmwOIk3gqsigTJOU3Cgw", 
   authDomain:"budget-salary.firebaseapp.com",
   projectId:"budget-salary",
   storageBucket:"budget-salary.firebasestorage.app",
@@ -174,63 +206,79 @@ firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth();
 const db=firebase.firestore();
 
+// DOM elements
 const authContainer=document.getElementById('authContainer');
 const app=document.getElementById('app');
 const welcomeUser=document.getElementById('welcomeUser');
 
-// ACCOUNTS stored in localStorage under key 'cvm_accounts'
+// Local Storage for Accounts
 let accounts = JSON.parse(localStorage.getItem('cvm_accounts')) || [];
 
-// ===== Login / Signup =====
+
+// =================================================================
+// 2. Auth Functions
+// =================================================================
 function showLogin(){
   authContainer.innerHTML=`
-    <input type="email" id="email" class="form-control mb-2" placeholder="البريد الإلكتروني">
-    <input type="password" id="password" class="form-control mb-2" placeholder="كلمة المرور">
-    <button class="btn btn-main w-100 mb-2" onclick="login()">تسجيل الدخول</button>
-    <button class="btn btn-outline-primary w-100 mb-2" onclick="signupStep1()">إنشاء حساب</button>
-    <button class="btn btn-outline-secondary w-100" onclick="googleLogin()">تسجيل بـ Google</button>
+    <div class="card card-royal">
+      <h4 class="text-center mb-4 text-primary">راتــب</h4>
+      <input type="email" id="email" class="form-control mb-2" placeholder="البريد الإلكتروني">
+      <input type="password" id="password" class="form-control mb-3" placeholder="كلمة المرور">
+      <button class="btn btn-main w-100 mb-2" onclick="login()">تسجيل الدخول</button>
+      <button class="btn btn-outline-primary w-100 mb-2" onclick="signup()">إنشاء حساب جديد</button>
+      <div class="text-center my-2">أو</div>
+      <button class="btn btn-outline-secondary w-100" onclick="googleLogin()"><i class="fab fa-google"></i> تسجيل بـ Google</button>
+    </div>
   `;
 }
 function login(){
   const email=document.getElementById('email').value;
   const password=document.getElementById('password').value;
-  auth.signInWithEmailAndPassword(email,password).catch(err=>alert(err.message));
+  auth.signInWithEmailAndPassword(email,password).catch(err=>alert("خطأ في الدخول: "+err.message));
 }
-function signupStep1(){
+function signup(){
   const email=document.getElementById('email').value;
   const password=document.getElementById('password').value;
+  if(password.length < 6){ alert("كلمة المرور يجب أن لا تقل عن 6 أحرف"); return; }
   auth.createUserWithEmailAndPassword(email,password).then(cred=>{
+    // إنشاء مستند المستخدم الأولي
     db.collection('users').doc(cred.user.uid).set({
       categories:{}, dailyExpenses:[], salary:0, incomeSources:0, loans:0, lastSalaryDate:null
     });
-  }).catch(err=>alert(err.message));
+    alert("تم إنشاء الحساب بنجاح! الرجاء إدخال بيانات الراتب والميزانية.");
+  }).catch(err=>alert("خطأ في التسجيل: "+err.message));
 }
 function googleLogin(){
   const provider=new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider);
+  auth.signInWithPopup(provider).catch(err=>alert("خطأ في Google: "+err.message));
 }
 function logout(){ auth.signOut(); }
 
-// ===== Bottom Navigation =====
+// =================================================================
+// 3. Navigation & Auth State
+// =================================================================
 document.querySelectorAll('.bottom-nav div[data-tab]').forEach(btn=>{
   btn.addEventListener('click',()=>{
     document.querySelectorAll('.tabContent').forEach(tc=>tc.style.display='none');
     document.getElementById(btn.dataset.tab+'Tab').style.display='block';
     document.querySelectorAll('.bottom-nav div').forEach(d=>d.classList.remove('active'));
     btn.classList.add('active');
-    // When switching to accounts or daily, refresh UI
-    if(btn.dataset.tab==='accounts') renderAccounts();
-    if(btn.dataset.tab==='daily') { /* nothing extra */ }
-    if(btn.dataset.tab==='weekly') { /* nothing extra */ }
+    
+    // Refresh UI on tab switch
+    const uid = auth.currentUser ? auth.currentUser.uid : null;
+    if(uid){
+      if(btn.dataset.tab==='accounts') renderAccounts();
+      if(btn.dataset.tab==='daily') loadUserData(uid); // Refresh dashboard/list
+      if(btn.dataset.tab==='weekly') loadUserData(uid); // Refresh list
+    }
   });
 });
 
-// ===== Load User Data =====
 auth.onAuthStateChanged(user=>{
   if(user){
     authContainer.style.display='none';
     app.style.display='block';
-    welcomeUser.textContent=`أهلاً، ${user.email} 👋`;
+    welcomeUser.textContent=`👋 أهلاً، ${user.email}`;
     loadUserData(user.uid);
   } else{
     authContainer.style.display='block';
@@ -239,7 +287,7 @@ auth.onAuthStateChanged(user=>{
   }
 });
 
-// ===== Load & Render Data =====
+// Load User Data
 async function loadUserData(uid){
   const docSnap = await db.collection('users').doc(uid).get();
   if(!docSnap.exists){ alert("خطأ: البيانات غير موجودة"); return; }
@@ -249,40 +297,95 @@ async function loadUserData(uid){
     renderInitialSetup(uid, data);
     return;
   }
+
+  // Reload accounts from localStorage just in case
+  accounts = JSON.parse(localStorage.getItem('cvm_accounts')) || [];
+
   renderDailyTab(data, uid);
   renderWeeklyTab(data, uid);
   renderAccountTab(data, uid);
-  // ensure accounts UI is in sync
-  renderAccounts();
+  renderAccounts(); // Ensure accounts tab is ready
+
+  // Simulate click on daily to show it first after login/setup
   document.querySelector('.bottom-nav div[data-tab="daily"]').click();
 }
 
-// ===== Initial Setup =====
+// =================================================================
+// 4. Initial Setup
+// =================================================================
 function renderInitialSetup(uid, data){
   const container=document.getElementById('dailyTab');
+  document.querySelectorAll('.tabContent').forEach(tc=>tc.style.display='none');
   container.style.display='block';
+  document.querySelectorAll('.bottom-nav div').forEach(d=>d.classList.remove('active'));
+  document.querySelector('.bottom-nav div[data-tab="daily"]').classList.add('active');
+
   container.innerHTML=`
     <div class="card card-royal mx-auto" style="max-width:520px;">
-      <h5>الخطوة 1: بيانات الراتب والدخل</h5>
-      <input type="number" id="salaryInput" class="form-control mb-2" placeholder="راتبك الأساسي" value="${data.salary||''}">
-      <input type="number" id="incomeInput" class="form-control mb-2" placeholder="مصادر دخل أخرى" value="${data.incomeSources||''}">
-      <input type="number" id="loansInput" class="form-control mb-2" placeholder="أي قروض أو التزامات" value="${data.loans||''}">
-      <h5 class="mt-3">الخطوة 2: الأقسام والمبالغ</h5>
+      <h5 class="text-center text-primary mb-4">أهلاً بك! لنبدأ بإعداد الميزانية</h5>
+      
+      <h6>الخطوة 1: بيانات الراتب والدخل 💰</h6>
+      <input type="number" id="salaryInput" class="form-control mb-2" placeholder="راتبك الأساسي الشهري" value="${data.salary||''}">
+      <input type="number" id="incomeInput" class="form-control mb-2" placeholder="مصادر دخل أخرى (شهرية/تقريبية)" value="${data.incomeSources||''}">
+      <input type="number" id="loansInput" class="form-control mb-3" placeholder="قروض / التزامات شهرية ثابتة" value="${data.loans||''}">
+      
+      <h6 class="mt-3">الخطوة 2: ميزانية الأقسام 🏷️</h6>
+      <p class="text-muted small">وزّع باقي المبلغ على أقسام مصاريفك (مثلاً: البقالة، المواصلات، الترفيه).</p>
       <div id="userCategoriesContainer"></div>
-      <button id="addCategoryBtn" class="btn btn-outline-primary mb-2 w-100">إضافة قسم</button>
-      <button id="saveSetupBtn" class="btn btn-main mt-2 w-100">حفظ البيانات</button>
+      <button id="addCategoryBtn" class="btn btn-outline-primary btn-sm mb-2 w-100"><i class="fas fa-plus-circle"></i> إضافة قسم</button>
+      <div id="totalAllocated" class="text-end fw-bold mb-3"></div>
+      
+      <button id="saveSetupBtn" class="btn btn-main mt-4 w-100"><i class="fas fa-save"></i> حفظ وبدء الاستخدام</button>
     </div>
   `;
   const userCategoriesContainer=document.getElementById('userCategoriesContainer');
+  const totalAllocated = document.getElementById('totalAllocated');
+  
+  function updateAllocationSummary(){
+      const salary=parseFloat(document.getElementById('salaryInput').value)||0;
+      const income=parseFloat(document.getElementById('incomeInput').value)||0;
+      const loans=parseFloat(document.getElementById('loansInput').value)||0;
+      const netSalary = salary + income - loans;
+      
+      const allocInputs=document.getElementsByClassName('category-alloc-input');
+      let totalAlloc=0;
+      for(let i=0;i<allocInputs.length;i++){
+          totalAlloc += parseFloat(allocInputs[i].value)||0;
+      }
+      
+      const remaining = netSalary - totalAlloc;
+      let cls = remaining >= 0 ? 'text-success' : 'text-danger';
+      totalAllocated.innerHTML = `المبلغ المتبقي للتوزيع: <span class="${cls}">${remaining.toFixed(2)}</span> ريال`;
+  }
+  
   function addCategoryRow(name="",alloc=""){
     const div=document.createElement('div');
-    div.className="d-flex gap-2 mb-2";
-    div.innerHTML=`<input type="text" class="form-control category-name-input" placeholder="اسم القسم" value="${name}">
-      <input type="number" class="form-control category-alloc-input" placeholder="المبلغ" value="${alloc}">`;
+    div.className="d-flex gap-2 mb-2 align-items-center";
+    div.innerHTML=`
+      <input type="text" class="form-control category-name-input" placeholder="اسم القسم" value="${name}">
+      <input type="number" class="form-control category-alloc-input" placeholder="المبلغ المخصص" value="${alloc}" oninput="updateAllocationSummary()">
+      <button class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove(); updateAllocationSummary()"><i class="fas fa-times"></i></button>
+    `;
     userCategoriesContainer.appendChild(div);
   }
-  for(let i=0;i<3;i++) addCategoryRow();
+  
+  // Initial rows based on existing or default
+  if(Object.keys(data.categories).length > 0){
+      for(const cat in data.categories) addCategoryRow(cat,data.categories[cat]);
+  } else {
+      addCategoryRow('البقالة', 1000);
+      addCategoryRow('المواصلات', 400);
+      addCategoryRow('الترفيه', 300);
+  }
+  
+  // Event listeners
   document.getElementById('addCategoryBtn').onclick=()=> addCategoryRow();
+  document.getElementById('salaryInput').oninput=updateAllocationSummary;
+  document.getElementById('incomeInput').oninput=updateAllocationSummary;
+  document.getElementById('loansInput').oninput=updateAllocationSummary;
+
+  updateAllocationSummary(); // Initial calculation
+
   document.getElementById('saveSetupBtn').onclick=async ()=>{
     const salary=parseFloat(document.getElementById('salaryInput').value)||0;
     const income=parseFloat(document.getElementById('incomeInput').value)||0;
@@ -290,50 +393,93 @@ function renderInitialSetup(uid, data){
     const nameInputs=document.getElementsByClassName('category-name-input');
     const allocInputs=document.getElementsByClassName('category-alloc-input');
     let categoriesObj={};
+    let totalAlloc=0;
     for(let i=0;i<nameInputs.length;i++){
       const name=nameInputs[i].value.trim();
       const alloc=parseFloat(allocInputs[i].value)||0;
-      if(name) categoriesObj[name]=alloc;
+      if(name){
+        categoriesObj[name]=alloc;
+        totalAlloc += alloc;
+      }
     }
+    
     if(Object.keys(categoriesObj).length===0){ alert("الرجاء إدخال قسم واحد على الأقل"); return; }
+    
+    // Check allocation consistency (optional, but good practice)
+    const netSalary = salary + income - loans;
+    if(totalAlloc > netSalary){
+        if(!confirm(`تنبيه: المبلغ المخصص (${totalAlloc.toFixed(2)}) أكبر من صافي دخلك (${netSalary.toFixed(2)})! هل تريد الاستمرار؟`)) return;
+    }
+
     await db.collection('users').doc(uid).update({
       salary:salary,
       incomeSources:income,
       loans:loans,
       categories:categoriesObj,
       dailyExpenses:[],
-      lastSalaryDate:null
+      lastSalaryDate:new Date().toISOString().split('T')[0] // Set initial salary date
     });
+    alert("تم حفظ إعدادات الميزانية بنجاح! يمكنك الآن تسجيل مصاريفك.");
     loadUserData(uid);
   };
 }
 
-// ===== Daily Tab =====
+// =================================================================
+// 5. Daily Tab - Main Screen
+// =================================================================
 function renderDailyTab(data, uid){
   const container=document.getElementById('dailyTab');
-  container.style.display='block';
+  // Calculation Summary
+  const netSalary = data.salary + data.incomeSources - data.loans;
+  const categoriesTotal = Object.values(data.categories).reduce((sum, val)=>sum+val, 0);
+  const totalSpent = data.dailyExpenses.reduce((sum, exp)=>sum+exp.amount, 0);
+  const currentRemaining = categoriesTotal - totalSpent;
+  const today = new Date().toISOString().split('T')[0];
+
   // build account options for select
   const accOptions = accounts.map(a=>`<option value="${a.name}">${a.name} — ${a.balance.toFixed(2)} ريال</option>`).join('');
+  
   container.innerHTML=`
-    <div class="card card-royal" style="max-width:720px; margin:auto;">
-      <h5 class="mb-3 text-center">🏷️ تسجيل المصاريف اليومية</h5>
-      <label>اختر التاريخ:</label>
-      <input type="date" id="expenseDate" class="form-control mb-3" value="${new Date().toISOString().split('T')[0]}">
-      <div class="mb-3">
-        <label>اختر الحساب (من أي حساب سيتم السحب):</label>
-        <select id="expenseAccount" class="form-select mb-2">
-          <option value="">-- اختر حساب --</option>
-          ${accOptions}
-        </select>
-        <label>اختر القسم:</label>
-        <select id="expenseCategory" class="form-select mb-2">
-          ${Object.keys(data.categories).map(cat=>`<option value="${cat}">${cat}</option>`).join('')}
-        </select>
-        <input type="number" id="expenseAmount" class="form-control mb-2" placeholder="المبلغ">
-        <input type="text" id="expenseDesc" class="form-control mb-2" placeholder="لِماذا تم الصرف؟">
-        <button id="addExpenseBtn" class="btn btn-main w-100">حفظ المصروف</button>
+    <div class="dashboard-grid">
+      <div class="dashboard-item db-main">
+        <h6>صافي الدخل</h6>
+        <span>${netSalary.toFixed(2)} ريال</span>
       </div>
-      <h6 class="mt-3">المصاريف المسجلة:</h6>
+      <div class="dashboard-item db-secondary">
+        <h6>الميزانية المتبقية</h6>
+        <span>${currentRemaining.toFixed(2)} ريال</span>
+      </div>
+      <div class="dashboard-item db-danger">
+        <h6>إجمالي المصاريف</h6>
+        <span>${totalSpent.toFixed(2)} ريال</span>
+      </div>
+    </div>
+    
+    <div class="card card-royal" style="max-width:720px; margin:auto;">
+      <h5 class="mb-3 text-center text-main"><i class="fas fa-edit"></i> تسجيل مصروف جديد</h5>
+      <div class="mb-3 row">
+        <div class="col-md-6 mb-2">
+            <label class="form-label small fw-bold">التاريخ</label>
+            <input type="date" id="expenseDate" class="form-control" value="${today}">
+        </div>
+        <div class="col-md-6 mb-2">
+            <label class="form-label small fw-bold">من أي حساب سيتم السحب</label>
+            <select id="expenseAccount" class="form-select">
+              <option value="">-- اختر حساب (اختياري) --</option>
+              ${accOptions}
+            </select>
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-bold">قسم المصروف</label>
+        <select id="expenseCategory" class="form-select mb-2">
+          ${Object.keys(data.categories).map(cat=>`<option value="${cat}">${cat} (ميزانية: ${data.categories[cat].toFixed(2)})</option>`).join('')}
+        </select>
+        <input type="number" id="expenseAmount" class="form-control mb-2" placeholder="المبلغ المصروف">
+        <input type="text" id="expenseDesc" class="form-control mb-3" placeholder="لِماذا تم الصرف؟ (مثلاً: عشاء مطعم)">
+        <button id="addExpenseBtn" class="btn btn-main w-100"><i class="fas fa-check-circle"></i> حفظ المصروف</button>
+      </div>
+      <h6 class="mt-4 border-top pt-3">آخر المصاريف المسجلة:</h6>
       <div id="dailyExpensesList"></div>
     </div>
   `;
@@ -342,12 +488,25 @@ function renderDailyTab(data, uid){
 
   function refreshList(){
     listDiv.innerHTML='';
-    data.dailyExpenses.forEach((exp)=>{
-      const row=document.createElement('div');
-      row.className='card card-royal mb-2';
-      row.innerHTML=`<strong>${exp.date}</strong> - ${exp.cat}: ${exp.amount} ريال (سبب: ${exp.desc}) — حساب: ${exp.acc||'غير محدد'}`;
-      listDiv.appendChild(row);
-    });
+    // Show only the last 10 entries for brevity on the main screen
+    const recentExpenses = data.dailyExpenses.slice(-10).reverse(); 
+    
+    if(recentExpenses.length === 0){
+        listDiv.innerHTML = '<div class="text-center text-muted p-3">لا توجد مصاريف مسجلة بعد.</div>';
+    } else {
+        recentExpenses.forEach((exp, idx)=>{
+          const row=document.createElement('div');
+          row.className='daily-expense-item';
+          row.innerHTML=`
+            <div class="exp-details">
+                <div class="exp-category">${exp.cat} <span class="text-muted small">(${exp.desc})</span></div>
+                <div class="small text-secondary">${exp.date} ${exp.acc ? `| 💳 ${exp.acc}` : ''}</div>
+            </div>
+            <div class="exp-amount">${exp.amount.toFixed(2)} ريال</div>
+          `;
+          listDiv.appendChild(row);
+        });
+    }
   }
 
   document.getElementById('addExpenseBtn').onclick=async ()=>{
@@ -356,150 +515,220 @@ function renderDailyTab(data, uid){
     const amount=parseFloat(document.getElementById('expenseAmount').value)||0;
     const desc=document.getElementById('expenseDesc').value.trim();
     const accName=document.getElementById('expenseAccount').value;
-    if(amount<=0 || !desc){ alert("الرجاء إدخال المبلغ والسبب"); return; }
-    // deduct from account if selected
+    
+    if(amount<=0 || !cat || !desc){ alert("الرجاء إدخال المبلغ، القسم، والسبب بشكل صحيح"); return; }
+    
+    // Deduct from account if selected
     if(accName){
       const idx = accounts.findIndex(a=>a.name===accName);
       if(idx!==-1){
+        if(accounts[idx].balance < amount){
+             if(!confirm(`تنبيه: رصيد الحساب (${accounts[idx].balance.toFixed(2)} ريال) أقل من المبلغ المصروف. هل تريد المتابعة والسماح بالرصيد السالب؟`)) return;
+        }
         accounts[idx].balance = parseFloat((accounts[idx].balance - amount).toFixed(2));
         localStorage.setItem('cvm_accounts', JSON.stringify(accounts));
       }
     }
-    // push expense with acc field
-    data.dailyExpenses.push({date,cat,amount,desc,acc:accName});
+    
+    // Add new expense and update Firebase
+    data.dailyExpenses.push({date, cat, amount, desc, acc:accName, timestamp: new Date().getTime()});
     await db.collection('users').doc(uid).update({dailyExpenses:data.dailyExpenses});
+    
+    // Clear form and refresh UI
     document.getElementById('expenseAmount').value='';
     document.getElementById('expenseDesc').value='';
-    refreshList();
-    // refresh accounts UI if visible
-    renderAccounts();
+    loadUserData(uid); // Re-load data to update dashboard and list
   };
 
   refreshList();
 }
 
-// ===== Weekly Tab =====
-function renderWeeklyTab(data){
+
+// =================================================================
+// 6. Weekly Tab - Analysis
+// =================================================================
+function renderWeeklyTab(data, uid){
   const container=document.getElementById('weeklyTab');
-  container.style.display='block';
   container.innerHTML=`
-    <h5 class="mb-3">التحليلات الأسبوعية</h5>
-    <div id="weeklyContainer"></div>
-    <div class="mt-3"><strong>إجمالي المصروفات الأسبوعية: </strong><span id="totalWeekly">0</span> ريال</div>
+    <h5 class="mb-3 text-center text-main"><i class="fas fa-chart-line"></i> التحليلات الأسبوعية والتحكم بالميزانية</h5>
+    <div id="weeklyContainer" style="max-width:720px; margin:auto;"></div>
+    <div class="card card-royal mt-4 mx-auto" style="max-width:720px;">
+        <canvas id="categoryChart"></canvas>
+    </div>
   `;
   const weeklyContainer=document.getElementById('weeklyContainer');
   const today=new Date();
   const days=[];
+  const expensesByCat = {};
+
+  // Get last 7 days (including today)
   for(let i=6;i>=0;i--){
     const d=new Date();
     d.setDate(today.getDate()-i);
     days.push(d.toISOString().split('T')[0]);
   }
 
-  let totalAll=0;
+  let totalWeeklySpent=0;
+  
+  // Calculate total spent per category for the whole budget period
+  const totalSpentPerCategory = {};
+  for(const cat in data.categories) totalSpentPerCategory[cat] = 0;
+  data.dailyExpenses.forEach(e => {
+      if(data.categories.hasOwnProperty(e.cat)) {
+          totalSpentPerCategory[e.cat] += e.amount;
+      }
+  });
+
+
   for(const day of days){
     const dayDiv=document.createElement('div');
-    dayDiv.className="card card-royal mb-2";
+    dayDiv.className="weekly-day-box";
     dayDiv.innerHTML=`<h6>${day}</h6>`;
     const dayExpenses=data.dailyExpenses.filter(e=>e.date===day);
-    if(dayExpenses.length===0){ dayDiv.innerHTML+="<div>لا توجد مصروفات</div>"; weeklyContainer.appendChild(dayDiv); continue; }
+    
+    if(dayExpenses.length===0){ dayDiv.innerHTML+="<div class='text-muted small'>لا توجد مصروفات مسجلة في هذا اليوم.</div>"; weeklyContainer.appendChild(dayDiv); continue; }
+    
+    let dayTotal = 0;
     dayExpenses.forEach((e,i)=>{
-      const spent=data.dailyExpenses.filter(x=>x.cat===e.cat).reduce((sum,x)=>sum+x.amount,0);
-      const categoryTotal=data.categories[e.cat];
-      const remaining=categoryTotal-spent;
-      totalAll+=e.amount;
-      const div=document.createElement('div');
-      div.className="expense-entry";
-      div.innerHTML=`
-        <div style="flex:2">${e.cat} — ${e.desc}</div>
-        <div style="flex:1">${e.amount} ريال</div>
-        <div style="flex:1">باقي: ${remaining} ريال</div>
-        <div style="flex:1">💳 ${e.acc||'—'}</div>
-        <div class="expense-actions">
-          <button class="btn btn-outline-danger btn-sm" onclick="deleteExpense('${e.date}','${e.cat}',${i})">حذف</button>
-        </div>
-      `;
-      dayDiv.appendChild(div);
+        const div=document.createElement('div');
+        div.className="daily-expense-item";
+        div.innerHTML=`
+            <div class="exp-details">
+                <span class="exp-category">${e.cat}</span>: ${e.desc}
+                <div class="small text-secondary">💳 ${e.acc||'—'}</div>
+            </div>
+            <div class="exp-amount">${e.amount.toFixed(2)} ريال</div>
+            <button class="btn btn-outline-danger btn-sm ms-2" title="حذف المصروف" onclick="deleteExpense('${e.date}', '${e.cat}', ${e.timestamp}, ${e.amount})"><i class="fas fa-trash-alt"></i></button>
+        `;
+        dayDiv.appendChild(div);
+        totalWeeklySpent+=e.amount;
+        dayTotal+=e.amount;
     });
+    
+    dayDiv.innerHTML += `<div class="text-end fw-bold pt-2 border-top mt-2">إجمالي اليوم: ${dayTotal.toFixed(2)} ريال</div>`;
     weeklyContainer.appendChild(dayDiv);
   }
-  document.getElementById('totalWeekly').textContent=totalAll.toFixed(2);
+  
+  // Overall category summary
+  let categorySummaryHTML = '<div class="card card-royal mt-3"><h6>مقارنة الميزانية المتبقية</h6>';
+  for(const cat in data.categories){
+      const allocated = data.categories[cat];
+      const spent = totalSpentPerCategory[cat];
+      const remaining = allocated - spent;
+      const percentage = Math.min(100, (spent / allocated) * 100 || 0);
+      const barClass = percentage < 75 ? 'green' : 'red';
+      
+      categorySummaryHTML += `
+          <div class="category-status">
+              <div class="d-flex justify-content-between">
+                  <span>${cat}:</span>
+                  <span class="fw-bold ${remaining < 0 ? 'text-danger' : 'text-success'}">${remaining.toFixed(2)} ريال متبقي</span>
+              </div>
+              <div class="status-bar-container">
+                  <div class="status-bar ${barClass}" style="width:${percentage}%;"></div>
+              </div>
+              <div class="small text-muted text-end">صُرف: ${spent.toFixed(2)} / ${allocated.toFixed(2)}</div>
+          </div>
+      `;
+  }
+  categorySummaryHTML += `</div><h5 class="text-center mt-4">إجمالي الصرف في الأيام السبعة الماضية: <span class="text-danger">${totalWeeklySpent.toFixed(2)} ريال</span></h5>`;
+  weeklyContainer.insertAdjacentHTML('afterbegin', categorySummaryHTML);
+
+  // Chart setup
+  const chartLabels = Object.keys(data.categories);
+  const chartData = chartLabels.map(cat => totalSpentPerCategory[cat]);
+  
+  new Chart(document.getElementById('categoryChart').getContext('2d'), {
+    type: 'pie',
+    data: {
+      labels: chartLabels,
+      datasets: [{
+        data: chartData,
+        backgroundColor: [ // Add more colors if needed
+            '#3b6bff', '#5a82ff', '#7b61ff', '#d66bff', '#f59e0b', '#f97316', '#28a745', '#dc3545' 
+        ],
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'top',
+          rtl: true,
+        },
+        title: {
+          display: true,
+          text: 'توزيع المصاريف حسب الأقسام',
+          font: { family: 'Segoe UI', size: 16 }
+        }
+      }
+    }
+  });
 }
 
-// ===== Delete Only =====
-async function deleteExpense(date, cat, index) {
-  if (!confirm("هل أنت متأكد من حذف هذا المصروف؟")) return;
+// ===== Delete Expense Function (Improved Logic) =====
+async function deleteExpense(date, cat, timestamp, amount) {
+  if (!confirm("هل أنت متأكد من حذف هذا المصروف؟ سيتم استرجاع المبلغ إلى الحساب المصرفي إذا كان محددًا.")) return;
 
   const uid = auth.currentUser.uid;
-  const docSnap = await db.collection('users').doc(uid).get();
+  const docRef = db.collection('users').doc(uid);
+  const docSnap = await docRef.get();
   const data = docSnap.data();
 
-  // العثور على المصروف في قائمة المستخدم
-  const expensesInCatDate = data.dailyExpenses.filter(x => x.date === date && x.cat === cat);
-  const expenseToDelete = expensesInCatDate[index];
-
-  if (!expenseToDelete) {
-    alert("حدث خطأ أثناء حذف المصروف");
-    return;
-  }
-
-  // if expense had an account, refund amount to that account locally
-  if(expenseToDelete.acc){
-    const accIndex = accounts.findIndex(a=>a.name===expenseToDelete.acc);
-    if(accIndex!==-1){
-      accounts[accIndex].balance = parseFloat((accounts[accIndex].balance + expenseToDelete.amount).toFixed(2));
-      localStorage.setItem('cvm_accounts', JSON.stringify(accounts));
-    }
-  }
-
-  // تحديد الموقع الحقيقي داخل المصفوفة الأصلية
+  // Find the exact expense using the combination of fields and timestamp
   const realIndex = data.dailyExpenses.findIndex(
-    x =>
-      x.date === expenseToDelete.date &&
-      x.cat === expenseToDelete.cat &&
-      x.amount === expenseToDelete.amount &&
-      x.desc === expenseToDelete.desc &&
-      x.acc === expenseToDelete.acc
+    x => x.date === date && x.cat === cat && x.timestamp === timestamp
   );
 
   if (realIndex !== -1) {
-    // حذف العنصر من المصفوفة
+    const expenseToDelete = data.dailyExpenses[realIndex];
+
+    // Refund amount to account if specified
+    if(expenseToDelete.acc){
+      const accIndex = accounts.findIndex(a=>a.name===expenseToDelete.acc);
+      if(accIndex!==-1){
+        accounts[accIndex].balance = parseFloat((accounts[accIndex].balance + expenseToDelete.amount).toFixed(2));
+        localStorage.setItem('cvm_accounts', JSON.stringify(accounts));
+      }
+    }
+
+    // Delete item from array and update Firebase
     data.dailyExpenses.splice(realIndex, 1);
-    // تحديث البيانات في Firebase
-    await db.collection('users').doc(uid).update({ dailyExpenses: data.dailyExpenses });
+    await docRef.update({ dailyExpenses: data.dailyExpenses });
     alert("🗑️ تم حذف المصروف بنجاح");
-    // إعادة تحميل البيانات
-    loadUserData(uid);
-    // refresh accounts UI
-    renderAccounts();
+    
+    // Refresh all UI elements
+    loadUserData(uid); 
   } else {
-    alert("لم يتم العثور على المصروف لحذفه");
+    alert("❌ لم يتم العثور على المصروف لحذفه");
   }
 }
 
-/* ======= حساباتي (Bank-style cards) ======= */
+// =================================================================
+// 7. Accounts Tab (Bank Cards)
+// =================================================================
 function renderAccounts(){
   const container=document.getElementById('accountsTab');
   container.style.display='block';
-  // container inner for accounts tab
+  
   const existing = document.getElementById('accountsInner');
   if(!existing){
-    // build accounts tab layout once
     document.getElementById('accountsTab').innerHTML = `
-      <h5 class="mb-3">💳 حساباتي</h5>
-      <div id="accountsInner">
-        <div id="accountsGrid" class="accounts-grid mb-3"></div>
-        <div class="mt-2">
+      <h5 class="mb-3 text-center text-main"><i class="fas fa-credit-card"></i> حساباتي وبطاقاتي</h5>
+      <div id="accountsInner" style="max-width:1000px; margin:auto;">
+        
+        <div class="text-center mb-3">
           <button class="btn btn-main" onclick="showAddAccountForm()">➕ إضافة بطاقة جديدة</button>
         </div>
 
-        <div id="addAccountBox" class="card card-royal mt-3" style="display:none; max-width:520px;">
+        <div id="addAccountBox" class="card card-royal mx-auto" style="display:none; max-width:520px;">
           <h6>إنشاء بطاقة / حساب جديد</h6>
           <input id="newAccountName" class="form-control mb-2" placeholder="اسم الحساب (مثلاً: الحساب الرئيسي)">
           <input id="newAccountBalance" class="form-control mb-2" placeholder="الرصيد المبدئي" type="number">
           <select id="newAccountType" class="form-select mb-2">
-            <option value="visa">VISA</option>
-            <option value="master">MasterCard</option>
+            <option value="blue">بطاقة رئيسية (أزرق)</option>
+            <option value="purple">بطاقة تسوق (بنفسجي)</option>
+            <option value="gold">بطاقة احتياط (ذهبي)</option>
           </select>
           <div class="d-flex gap-2">
             <button class="btn btn-main" onclick="confirmAddAccount()">إضافة البطاقة</button>
@@ -507,39 +736,39 @@ function renderAccounts(){
           </div>
         </div>
 
-        <div id="addMoneyBox" class="card card-royal mt-3" style="display:none; max-width:520px;">
-          <h6>إضافة أموال</h6>
-          <p id="targetAcctLabel"></p>
-          <input id="moneySourceInput" class="form-control mb-2" placeholder="المصدر (اختياري)">
+        <div id="addMoneyBox" class="card card-royal mx-auto" style="display:none; max-width:520px;">
+          <h6>➕ إضافة أو سحب أموال</h6>
+          <p id="targetAcctLabel" class="fw-bold"></p>
+          <input id="moneySourceInput" class="form-control mb-2" placeholder="المصدر / السبب (اختياري)">
           <input id="moneyAmountInput" class="form-control mb-2" placeholder="المبلغ" type="number">
+          <select id="moneyActionType" class="form-select mb-2">
+            <option value="add">إضافة (إيداع)</option>
+            <option value="deduct">سحب (تحويل)</option>
+          </select>
           <div class="d-flex gap-2">
-            <button class="btn btn-main" id="confirmAddMoneyBtn">إضافة</button>
+            <button class="btn btn-main" id="confirmAddMoneyBtn">تنفيذ</button>
             <button class="btn btn-outline-secondary" onclick="cancelAddMoneyForm()">إلغاء</button>
           </div>
         </div>
+        
+        <div id="accountsGrid" class="accounts-grid mt-3"></div>
       </div>
     `;
   }
 
-  // render grid
+  // Render Grid
   const grid = document.getElementById('accountsGrid');
   grid.innerHTML = '';
-  // ensure accounts persisted
   accounts = JSON.parse(localStorage.getItem('cvm_accounts')) || accounts;
+  
   if(accounts.length===0){
-    grid.innerHTML = `<div class="card card-royal">لا توجد حسابات بعد — أضيفي بطاقة جديدة.</div>`;
+    grid.innerHTML = `<div class="card card-royal w-100 text-center">لا توجد حسابات بعد — اضغط على "إضافة بطاقة جديدة".</div>`;
   } else {
     accounts.forEach((acc, idx)=>{
-      // choose gradient and logo
-      let cls = 'grad-blue', logo='visa';
-      if(acc.style==='purple'){ cls='grad-purple'; logo='visa'; }
-      if(acc.style==='gold'){ cls='grad-gold'; logo='master'; }
-      // fallback if not set
-      if(!acc.style){
-        // alternate styles
-        cls = ['grad-blue','grad-purple','grad-gold'][idx % 3];
-        acc.style = (idx % 3===0? 'blue': (idx%3===1?'purple':'gold'));
-      }
+      let cls = 'grad-blue', logoType='visa';
+      if(acc.style==='purple'){ cls='grad-purple'; logoType='master'; }
+      if(acc.style==='gold'){ cls='grad-gold'; logoType='visa'; }
+      
       const card = document.createElement('div');
       card.className = 'bank-card '+cls;
       card.innerHTML = `
@@ -547,23 +776,23 @@ function renderAccounts(){
           <div>
             <div class="card-name">${acc.name}</div>
           </div>
-          <div><img class="card-logo" src="${logo === 'visa' ? 'https://upload.wikimedia.org/wikipedia/commons/5/52/Visa_2014_logo_detail.svg' : 'https://upload.wikimedia.org/wikipedia/commons/0/04/Mastercard-logo.png'}" alt="${logo}"></div>
+          <div>
+             <i class="fab fa-${logoType} fa-2x"></i>
+          </div>
         </div>
         <div>
           <div class="card-balance">${acc.balance.toFixed(2)} ريال</div>
         </div>
         <div class="bank-actions">
-          <button class="small-btn primary" onclick="openAddMoney(${idx})">➕ إضافة أموال</button>
-          <button class="small-btn primary" onclick="showAccountDetails(${idx})">🧾 تفاصيل</button>
+          <button class="small-btn primary" onclick="openAddMoney(${idx}, 'add')">➕ إيداع</button>
+          <button class="small-btn primary" onclick="openAddMoney(${idx}, 'deduct')">➖ سحب</button>
           <button class="small-btn danger" onclick="deleteAccount(${idx})">🗑️ حذف</button>
         </div>
       `;
       grid.appendChild(card);
     });
   }
-  // persist accounts
   localStorage.setItem('cvm_accounts', JSON.stringify(accounts));
-  // also update daily expense account select options if daily tab exists
   updateExpenseAccountSelect();
 }
 
@@ -577,55 +806,60 @@ function cancelAddAccountForm(){
 function confirmAddAccount(){
   const name = document.getElementById('newAccountName').value.trim();
   const bal = parseFloat(document.getElementById('newAccountBalance').value) || 0;
-  const type = document.getElementById('newAccountType').value;
-  if(!name) return alert("أدخلي اسم البطاقة");
-  const style = (type==='visa' ? 'blue' : 'gold');
-  accounts.push({name, balance:bal, style});
+  const style = document.getElementById('newAccountType').value;
+  if(!name) return alert("الرجاء إدخال اسم البطاقة");
+  accounts.push({name, balance:bal, style, createdAt: new Date().toISOString()});
   localStorage.setItem('cvm_accounts', JSON.stringify(accounts));
   document.getElementById('newAccountName').value='';
   document.getElementById('newAccountBalance').value='';
   document.getElementById('addAccountBox').style.display='none';
   renderAccounts();
 }
-
 function deleteAccount(idx){
-  if(!confirm("هل تريدين حذف هذه البطاقة؟ سيتم حذف كل السجلات المرتبطة محليًا فقط.")) return;
+  if(!confirm("⚠️ تحذير: هل أنت متأكد من حذف هذه البطاقة؟ سيتم حذفها من سجلاتك المحلية ولن تستطيع ربط مصاريفك بها مرة أخرى.")) return;
   accounts.splice(idx,1);
   localStorage.setItem('cvm_accounts', JSON.stringify(accounts));
   renderAccounts();
 }
-
-function openAddMoney(idx){
-  document.getElementById('addAccountBox') && (document.getElementById('addAccountBox').style.display='none');
+function openAddMoney(idx, action='add'){
+  document.getElementById('addAccountBox').style.display='none';
   document.getElementById('addMoneyBox').style.display='block';
-  document.getElementById('targetAcctLabel').textContent = `إضافة أموال إلى: ${accounts[idx].name}`;
+  document.getElementById('targetAcctLabel').textContent = `تعديل رصيد: ${accounts[idx].name} (الرصيد الحالي: ${accounts[idx].balance.toFixed(2)})`;
+  
+  const actionType = document.getElementById('moneyActionType');
+  actionType.value = action;
+  
   const btn = document.getElementById('confirmAddMoneyBtn');
   btn.onclick = ()=>{
-    const src = document.getElementById('moneySourceInput').value.trim();
     const amt = parseFloat(document.getElementById('moneyAmountInput').value);
-    if(isNaN(amt) || amt<=0) return alert("أدخلي مبلغ صحيح");
-    accounts[idx].balance = parseFloat((accounts[idx].balance + amt).toFixed(2));
+    const type = actionType.value;
+    if(isNaN(amt) || amt<=0) return alert("أدخل مبلغًا صحيحًا وموجبًا");
+    
+    let newBalance = accounts[idx].balance;
+    if(type === 'add'){
+        newBalance += amt;
+    } else { // deduct
+        newBalance -= amt;
+    }
+
+    accounts[idx].balance = parseFloat(newBalance.toFixed(2));
     localStorage.setItem('cvm_accounts', JSON.stringify(accounts));
+    
+    // Clear form and hide
     document.getElementById('moneySourceInput').value='';
     document.getElementById('moneyAmountInput').value='';
     document.getElementById('addMoneyBox').style.display='none';
     renderAccounts();
+    alert(`تم ${type==='add'?'إضافة':'سحب'} ${amt.toFixed(2)} ريال. الرصيد الجديد: ${accounts[idx].balance.toFixed(2)} ريال.`);
   };
 }
 function cancelAddMoneyForm(){
   document.getElementById('addMoneyBox').style.display='none';
 }
-
-function showAccountDetails(idx){
-  const acc = accounts[idx];
-  alert(`تفاصيل البطاقة:\n\nالاسم: ${acc.name}\nالرصيد: ${acc.balance.toFixed(2)} ريال`);
-}
-
 function updateExpenseAccountSelect(){
-  // update the select in dailyTab if present
   const sel = document.getElementById('expenseAccount');
   if(!sel) return;
-  sel.innerHTML = '<option value="">-- اختر حساب --</option>';
+  sel.innerHTML = '<option value="">-- اختر حساب (اختياري) --</option>';
   accounts.forEach(a=>{
     const opt = document.createElement('option');
     opt.value = a.name;
@@ -634,51 +868,67 @@ function updateExpenseAccountSelect(){
   });
 }
 
-// ensure if user navigates directly to accounts tab we render
-document.addEventListener('visibilitychange', ()=>{ /* noop */ });
-
-// ===== Account Tab (existing settings) =====
+// =================================================================
+// 8. Account Tab (Settings)
+// =================================================================
 function renderAccountTab(data, uid){
   const container=document.getElementById('accountTab');
-  container.style.display='block';
   container.innerHTML=`
-    <div class="card card-royal">
-      <h5>تعديل بياناتك</h5>
-      <input type="number" id="salaryEdit" class="form-control mb-2" value="${data.salary}" placeholder="راتبك">
-      <input type="number" id="loansEdit" class="form-control mb-2" value="${data.loans}" placeholder="قروضك">
-      <h6>الأقسام</h6>
+    <div class="card card-royal mx-auto" style="max-width:520px;">
+      <h5 class="text-center text-main mb-4"><i class="fas fa-cog"></i> تعديل بيانات الحساب والميزانية</h5>
+      
+      <h6>بيانات الدخل</h6>
+      <input type="number" id="salaryEdit" class="form-control mb-2" value="${data.salary||''}" placeholder="راتبك الأساسي">
+      <input type="number" id="incomeEdit" class="form-control mb-2" value="${data.incomeSources||''}" placeholder="مصادر دخل أخرى">
+      <input type="number" id="loansEdit" class="form-control mb-3" value="${data.loans||''}" placeholder="قروض / التزامات شهرية">
+      
+      <h6>تعديل ميزانية الأقسام</h6>
       <div id="editCategoriesContainer"></div>
-      <button id="addEditCategoryBtn" class="btn btn-outline-primary mb-2 w-100">إضافة قسم</button>
-      <button id="saveAccountBtn" class="btn btn-main w-100">حفظ التعديلات</button>
+      <button id="addEditCategoryBtn" class="btn btn-outline-primary btn-sm mb-2 w-100"><i class="fas fa-plus-circle"></i> إضافة قسم جديد</button>
+      
+      <button id="saveAccountBtn" class="btn btn-main w-100 mt-4"><i class="fas fa-save"></i> حفظ التعديلات</button>
     </div>
   `;
+  
   const editContainer=document.getElementById('editCategoriesContainer');
   function addEditRow(name="",alloc=""){
     const div=document.createElement('div');
-    div.className="d-flex gap-2 mb-2";
-    div.innerHTML=`<input type="text" class="form-control category-name-input" value="${name}">
-      <input type="number" class="form-control category-alloc-input" value="${alloc}">`;
+    div.className="d-flex gap-2 mb-2 align-items-center";
+    div.innerHTML=`
+      <input type="text" class="form-control category-name-input" value="${name}" placeholder="اسم القسم">
+      <input type="number" class="form-control category-alloc-input" value="${alloc}" placeholder="المبلغ المخصص">
+      <button class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+    `;
     editContainer.appendChild(div);
   }
+  
+  // Load existing categories
   for(const cat in data.categories) addEditRow(cat,data.categories[cat]);
+  
   document.getElementById('addEditCategoryBtn').onclick=()=> addEditRow();
+  
   document.getElementById('saveAccountBtn').onclick=async ()=>{
     const salary=parseFloat(document.getElementById('salaryEdit').value)||0;
+    const income=parseFloat(document.getElementById('incomeEdit').value)||0;
     const loans=parseFloat(document.getElementById('loansEdit').value)||0;
     const names=document.getElementsByClassName('category-name-input');
     const allocs=document.getElementsByClassName('category-alloc-input');
     const categories={};
+    
     for(let i=0;i<names.length;i++){
       const name=names[i].value.trim();
       const alloc=parseFloat(allocs[i].value)||0;
       if(name) categories[name]=alloc;
     }
-    await db.collection('users').doc(uid).update({salary,loans,categories});
-    alert("تم تحديث البيانات!");
-    loadUserData(uid);
+    
+    await db.collection('users').doc(uid).update({salary, incomeSources: income, loans, categories});
+    alert("✅ تم تحديث البيانات بنجاح! سيتم إعادة تحميل الواجهة.");
+    loadUserData(uid); // Re-load to refresh all tabs
   };
 }
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 </html>
