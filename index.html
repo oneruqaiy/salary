@@ -138,6 +138,20 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   margin-top:5px;
 }
 .expense-actions button{flex:1;}
+.salary-card{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px;
+  margin-bottom:10px;
+  border-radius:12px;
+  background:linear-gradient(135deg,#2b6df6,#4369ff);
+  color:white;
+}
+.salary-card img{
+  width:40px;
+  height:40px;
+}
 </style>
 </head>
 <body>
@@ -178,18 +192,10 @@ const authContainer=document.getElementById('authContainer');
 const app=document.getElementById('app');
 const welcomeUser=document.getElementById('welcomeUser');
 
-// ACCOUNTS stored in localStorage under key 'cvm_accounts'
+// ACCOUNTS stored in localStorage
 let accounts = JSON.parse(localStorage.getItem('cvm_accounts')) || [];
 
-/* ===== Category → Account mapping ===== */
-function loadCategoryMapping() {
-  return JSON.parse(localStorage.getItem('cvm_cat_mapping') || '{}');
-}
-function saveCategoryMapping(mapping) {
-  localStorage.setItem('cvm_cat_mapping', JSON.stringify(mapping));
-}
-
-/* ===== Login / Signup ===== */
+// ===== Login / Signup =====
 function showLogin(){
   authContainer.innerHTML=`
     <input type="email" id="email" class="form-control mb-2" placeholder="البريد الإلكتروني">
@@ -209,7 +215,7 @@ function signupStep1(){
   const password=document.getElementById('password').value;
   auth.createUserWithEmailAndPassword(email,password).then(cred=>{
     db.collection('users').doc(cred.user.uid).set({
-      categories:{}, dailyExpenses:[], salary:0, incomeSources:0, loans:0, lastSalaryDate:null
+      categories:{}, dailyExpenses:[], salary:0, incomeSources:0, loans:0, lastSalaryDate:null, categoryAccounts:{}
     });
   }).catch(err=>alert(err.message));
 }
@@ -219,7 +225,7 @@ function googleLogin(){
 }
 function logout(){ auth.signOut(); }
 
-/* ===== Bottom Navigation ===== */
+// ===== Bottom Navigation =====
 document.querySelectorAll('.bottom-nav div[data-tab]').forEach(btn=>{
   btn.addEventListener('click',()=>{
     document.querySelectorAll('.tabContent').forEach(tc=>tc.style.display='none');
@@ -230,7 +236,7 @@ document.querySelectorAll('.bottom-nav div[data-tab]').forEach(btn=>{
   });
 });
 
-/* ===== Load User Data ===== */
+// ===== Load User Data =====
 auth.onAuthStateChanged(user=>{
   if(user){
     authContainer.style.display='none';
@@ -248,10 +254,7 @@ async function loadUserData(uid){
   const docSnap = await db.collection('users').doc(uid).get();
   if(!docSnap.exists){ alert("خطأ: البيانات غير موجودة"); return; }
   const data=docSnap.data();
-  if(!data.salary || Object.keys(data.categories).length===0){
-    renderInitialSetup(uid, data);
-    return;
-  }
+
   renderDailyTab(data, uid);
   renderWeeklyTab(data, uid);
   renderAccountTab(data, uid);
@@ -259,186 +262,175 @@ async function loadUserData(uid){
   document.querySelector('.bottom-nav div[data-tab="daily"]').click();
 }
 
-/* ===== Initial Setup ===== */
-function renderInitialSetup(uid, data){
+// ===== Daily Tab =====
+function renderDailyTab(data, uid){
   const container=document.getElementById('dailyTab');
   container.style.display='block';
-  container.innerHTML=`
-    <div class="card card-royal mx-auto" style="max-width:520px;">
-      <h5>الخطوة 1: بيانات الراتب والدخل</h5>
-      <input type="number" id="salaryInput" class="form-control mb-2" placeholder="راتبك الأساسي" value="${data.salary||''}">
-      <input type="number" id="incomeInput" class="form-control mb-2" placeholder="مصادر دخل أخرى" value="${data.incomeSources||''}">
-      <input type="number" id="loansInput" class="form-control mb-2" placeholder="أي قروض أو التزامات" value="${data.loans||''}">
-      <h5 class="mt-3">الخطوة 2: الأقسام والمبالغ</h5>
-      <div id="userCategoriesContainer"></div>
-      <button id="addCategoryBtn" class="btn btn-outline-primary mb-2 w-100">إضافة قسم</button>
-      <button id="saveSetupBtn" class="btn btn-main mt-2 w-100">حفظ البيانات</button>
+
+  // زر اضافة راتب
+  const salaryCard = `
+    <div class="salary-card">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/5/52/Visa_2014_logo_detail.svg" alt="الحساب الرئيسي">
+      <div>💰 إضافة راتب</div>
+      <button class="btn btn-outline-light btn-sm ms-auto" onclick="addSalary(${uid})">➕ إضافة</button>
     </div>
   `;
-  const userCategoriesContainer=document.getElementById('userCategoriesContainer');
-  function addCategoryRow(name="",alloc=""){
-    const div=document.createElement('div');
-    div.className="d-flex gap-2 mb-2";
-    div.innerHTML=`<input type="text" class="form-control category-name-input" placeholder="اسم القسم" value="${name}">
-      <input type="number" class="form-control category-alloc-input" placeholder="المبلغ" value="${alloc}">`;
-    userCategoriesContainer.appendChild(div);
-  }
-  for(let i=0;i<3;i++) addCategoryRow();
-  document.getElementById('addCategoryBtn').onclick=()=> addCategoryRow();
-  document.getElementById('saveSetupBtn').onclick=async ()=>{
-    const salary=parseFloat(document.getElementById('salaryInput').value)||0;
-    const income=parseFloat(document.getElementById('incomeInput').value)||0;
-    const loans=parseFloat(document.getElementById('loansInput').value)||0;
-    const nameInputs=document.getElementsByClassName('category-name-input');
-    const allocInputs=document.getElementsByClassName('category-alloc-input');
-    let categoriesObj={};
-    for(let i=0;i<nameInputs.length;i++){
-      const name=nameInputs[i].value.trim();
-      const alloc=parseFloat(allocInputs[i].value)||0;
-      if(name) categoriesObj[name]=alloc;
-    }
-    await db.collection('users').doc(uid).update({
-      salary:salary,
-      incomeSources:income,
-      loans:loans,
-      categories:categoriesObj
+
+  container.innerHTML=salaryCard+`
+    <div class="card card-royal" style="max-width:720px; margin:auto;">
+      <h5 class="mb-3 text-center">🏷️ تسجيل المصاريف اليومية</h5>
+      <label>اختر التاريخ:</label>
+      <input type="date" id="expenseDate" class="form-control mb-3" value="${new Date().toISOString().split('T')[0]}">
+      <label>اختر القسم:</label>
+      <select id="expenseCategory" class="form-select mb-2">
+        ${Object.keys(data.categories).map(cat=>`<option value="${cat}">${cat}</option>`).join('')}
+      </select>
+      <input type="number" id="expenseAmount" class="form-control mb-2" placeholder="المبلغ">
+      <input type="text" id="expenseDesc" class="form-control mb-2" placeholder="لِماذا تم الصرف؟">
+      <button id="addExpenseBtn" class="btn btn-main w-100">حفظ المصروف</button>
+      <h6 class="mt-3">المصاريف المسجلة:</h6>
+      <div id="dailyExpensesList"></div>
+    </div>
+  `;
+
+  const listDiv=document.getElementById('dailyExpensesList');
+
+  function refreshList(){
+    listDiv.innerHTML='';
+    data.dailyExpenses.forEach((exp)=>{
+      const row=document.createElement('div');
+      row.className='card card-royal mb-2';
+      row.innerHTML=`<strong>${exp.date}</strong> - ${exp.cat}: ${exp.amount} ريال (سبب: ${exp.desc}) — حساب: ${exp.acc||'غير محدد'}`;
+      listDiv.appendChild(row);
     });
-    alert("تم حفظ البيانات ✅");
-    loadUserData(uid);
   }
-}
 
-/* ===== Daily Tab ===== */
-function renderDailyTab(data,uid){
-  const container=document.getElementById('dailyTab');
-  container.innerHTML="";
-  const grid=document.createElement('div');
-  grid.className="cards-grid";
-  for(const cat in data.categories){
-    const card=document.createElement('div');
-    card.className="card-grid-item";
-    card.textContent=`${cat}: ${data.categories[cat]} ريال`;
-    card.onclick=()=>{ addExpense(cat,data,uid); }
-    grid.appendChild(card);
-  }
-  container.appendChild(grid);
-}
+  document.getElementById('addExpenseBtn').onclick=async ()=>{
+    const date=document.getElementById('expenseDate').value;
+    const cat=document.getElementById('expenseCategory').value;
+    const amount=parseFloat(document.getElementById('expenseAmount').value)||0;
+    const desc=document.getElementById('expenseDesc').value.trim();
+    if(amount<=0 || !desc){ alert("الرجاء إدخال المبلغ والسبب"); return; }
 
-/* ===== Add Expense ===== */
-function addExpense(cat,data,uid){
-  const amount=prompt(`أدخل قيمة المصروف لقسم "${cat}"`);
-  if(!amount) return;
-  const amt=parseFloat(amount);
-  if(isNaN(amt) || amt<=0){ alert("القيمة غير صحيحة"); return; }
-  const date=new Date().toISOString();
-  const expenseObj={cat:cat, amount:amt, date:date};
-  // حساب مرتبط بالقسم
-  let accName=prompt("ادخل الحساب أو اتركه فارغ لاستخدام الحساب الافتراضي المرتبط بالقسم")||"";
-  if(!accName){
-    const mapping=loadCategoryMapping();
-    if(mapping && mapping[cat]) accName=mapping[cat];
-  }
-  if(accName){
-    const idx=accounts.findIndex(a=>a.name===accName);
-    if(idx!==-1){
-      accounts[idx].balance=parseFloat((accounts[idx].balance-amt).toFixed(2));
-      localStorage.setItem('cvm_accounts',JSON.stringify(accounts));
+    // خصم تلقائي من الحساب المرتبط بالقسم
+    const catAccName = data.categoryAccounts[cat];
+    if(catAccName){
+      const idx = accounts.findIndex(a=>a.name===catAccName);
+      if(idx!==-1){
+        accounts[idx].balance = parseFloat((accounts[idx].balance - amount).toFixed(2));
+        localStorage.setItem('cvm_accounts', JSON.stringify(accounts));
+      }
     }
-  }
-  db.collection('users').doc(uid).update({
-    dailyExpenses:firebase.firestore.FieldValue.arrayUnion(expenseObj)
-  }).then(()=> alert("تم إضافة المصروف ✅"));
-}
 
-/* ===== Weekly Tab (تحليلات) ===== */
-function renderWeeklyTab(data,uid){
-  const container=document.getElementById('weeklyTab');
-  container.innerHTML="<p>سيتم عرض التحليلات الأسبوعية هنا</p>";
-}
-
-/* ===== Accounts Tab (بطاقاتك البنكية) ===== */
-function renderAccounts(){
-  const container=document.getElementById('accountsTab');
-  container.innerHTML="<h5>حساباتك البنكية</h5>";
-  const grid=document.createElement('div'); grid.className="accounts-grid";
-  accounts.forEach((acc,idx)=>{
-    const card=document.createElement('div'); card.className='bank-card grad-blue';
-    card.innerHTML=`
-      <div class="card-top">
-        <div class="card-balance">${acc.balance.toFixed(2)} ريال</div>
-        <div class="card-logo">🏦</div>
-      </div>
-      <div class="card-name">${acc.name}</div>
-      <div class="bank-actions">
-        <button class="small-btn primary" onclick="addMoney(${idx})">💰 إضافة</button>
-        <button class="small-btn danger" onclick="removeAccount(${idx})">🗑️ حذف</button>
-      </div>
-    `;
-    grid.appendChild(card);
-  });
-  container.appendChild(grid);
-  const addBtn=document.createElement('button');
-  addBtn.className="btn btn-main mt-2 w-100";
-  addBtn.textContent="إضافة حساب جديد";
-  addBtn.onclick=()=>{ 
-    const name=prompt("اسم الحساب"); 
-    const bal=parseFloat(prompt("الرصيد الابتدائي"))||0;
-    accounts.push({name:name,balance:bal});
-    localStorage.setItem('cvm_accounts',JSON.stringify(accounts));
+    data.dailyExpenses.push({date,cat,amount,desc,acc:catAccName||'—'});
+    await db.collection('users').doc(uid).update({dailyExpenses:data.dailyExpenses});
+    document.getElementById('expenseAmount').value='';
+    document.getElementById('expenseDesc').value='';
+    refreshList();
     renderAccounts();
-  }
-  container.appendChild(addBtn);
+  };
+
+  refreshList();
 }
-function addMoney(idx){
-  const val=parseFloat(prompt("أدخل المبلغ"))||0;
-  accounts[idx].balance+=val;
-  localStorage.setItem('cvm_accounts',JSON.stringify(accounts));
+
+// ===== Add Salary =====
+async function addSalary(uid){
+  const amt = prompt("أدخل مبلغ الراتب:");
+  const value = parseFloat(amt);
+  if(isNaN(value)||value<=0) return alert("أدخل مبلغ صالح");
+  // نضيف للرصيد الأول (الحساب الرئيسي)
+  if(accounts.length===0) return alert("لا يوجد حساب بنكي لإضافة الراتب");
+  accounts[0].balance = parseFloat((accounts[0].balance+value).toFixed(2));
+  localStorage.setItem('cvm_accounts', JSON.stringify(accounts));
+  alert("تم إضافة الراتب للحساب الرئيسي");
   renderAccounts();
 }
-function removeAccount(idx){
-  if(confirm("هل تريد حذف هذا الحساب؟")){
-    accounts.splice(idx,1);
-    localStorage.setItem('cvm_accounts',JSON.stringify(accounts));
-    renderAccounts();
+
+// ===== Weekly Tab =====
+function renderWeeklyTab(data){
+  const container=document.getElementById('weeklyTab');
+  container.style.display='block';
+  container.innerHTML=`<h5 class="mb-3">التحليلات الأسبوعية</h5><div id="weeklyContainer"></div>`;
+  const weeklyContainer=document.getElementById('weeklyContainer');
+  const today=new Date();
+  const days=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date();
+    d.setDate(today.getDate()-i);
+    days.push(d.toISOString().split('T')[0]);
   }
-}
-
-/* ===== Account Tab (ربط الأقسام بالحسابات) ===== */
-function renderAccountTab(data,uid){
-  const container=document.getElementById('accountTab');
-  container.innerHTML=`
-    <h5>ربط الأقسام بالحسابات البنكية</h5>
-    <div id="editCategoriesContainer"></div>
-  `;
-  renderCategoryAccountMappingUI(data);
-}
-
-/* ===== Category ↔ Account Mapping UI ===== */
-function renderCategoryAccountMappingUI(data){
-  const container=document.getElementById('editCategoriesContainer');
-  if(!container) return;
-  container.innerHTML="";
-  const mapping=loadCategoryMapping();
-  for(const cat of Object.keys(data.categories || {})){
-    const row=document.createElement('div');
-    row.className="d-flex gap-2 mb-2 align-items-center";
-    const span=document.createElement('div'); span.style.flex='1'; span.textContent=cat;
-    const sel=document.createElement('select'); sel.className='form-select'; sel.style.flex='1';
-    const optNone=document.createElement('option'); optNone.value=''; optNone.textContent='-- اختر حساب (اختياري) --';
-    sel.appendChild(optNone);
-    accounts.forEach(acc=>{
-      const o=document.createElement('option');
-      o.value=acc.name; o.textContent=`${acc.name} — ${acc.balance.toFixed(2)} ريال`;
-      sel.appendChild(o);
+  for(const day of days){
+    const dayDiv=document.createElement('div');
+    dayDiv.className="card card-royal mb-2";
+    dayDiv.innerHTML=`<h6>${day}</h6>`;
+    const dayExpenses=data.dailyExpenses.filter(e=>e.date===day);
+    dayExpenses.forEach(e=>{
+      dayDiv.innerHTML+=`<div>${e.cat}: ${e.amount} ريال — ${e.acc||'—'} (${e.desc})</div>`;
     });
-    if(mapping[cat]) sel.value=mapping[cat];
-    sel.onchange=()=>{ 
-      const m=loadCategoryMapping();
-      if(sel.value) m[cat]=sel.value; else delete m[cat];
-      saveCategoryMapping(m);
-    }
-    row.appendChild(span); row.appendChild(sel); container.appendChild(row);
+    weeklyContainer.appendChild(dayDiv);
   }
+}
+
+// ===== Account Tab (ربط الأقسام بالحسابات) =====
+function renderAccountTab(data, uid){
+  const container=document.getElementById('accountTab');
+  container.style.display='block';
+  container.innerHTML='<h5 class="mb-3 text-center">⚙️ ربط الأقسام بالحسابات</h5>';
+
+  Object.keys(data.categories).forEach(cat=>{
+    const div=document.createElement('div');
+    div.className='mb-2 card card-royal';
+    div.innerHTML=`
+      <div><strong>${cat}</strong></div>
+      <select id="sel-${cat}" class="form-select mt-1 mb-1">
+        <option value="">— اختر حساب —</option>
+        ${accounts.map(acc=>`<option value="${acc.name}" ${data.categoryAccounts[cat]===acc.name?'selected':''}>${acc.name}</option>`).join('')}
+      </select>
+      <button class="btn btn-main btn-sm w-100" onclick="saveCatAccount('${cat}', '${uid}')">حفظ</button>
+    `;
+    container.appendChild(div);
+  });
+}
+async function saveCatAccount(cat, uid){
+  const sel=document.getElementById('sel-'+cat);
+  const val=sel.value;
+  const docRef=db.collection('users').doc(uid);
+  const docSnap = await docRef.get();
+  const data=docSnap.data();
+  data.categoryAccounts[cat]=val;
+  await docRef.update({categoryAccounts:data.categoryAccounts});
+  alert(`تم ربط القسم "${cat}" بالحساب "${val}"`);
+}
+
+// ===== Accounts Tab (عرض كل الحسابات البنكية) =====
+function renderAccounts(){
+  const container=document.getElementById('accountsTab');
+  container.style.display='block';
+  container.innerHTML='<h5 class="mb-3 text-center">💳 حساباتي</h5>';
+  const grid=document.createElement('div');
+  grid.className='accounts-grid';
+  accounts.forEach(acc=>{
+    const div=document.createElement('div');
+    div.className='bank-card grad-blue';
+    div.innerHTML=`
+      <div class="card-top">
+        <div class="card-name">${acc.name}</div>
+        <div class="card-balance">${acc.balance} ريال</div>
+      </div>
+    `;
+    grid.appendChild(div);
+  });
+  container.appendChild(grid);
+}
+
+// ===== Dummy Accounts if empty =====
+if(accounts.length===0){
+  accounts=[
+    {name:'الحساب الرئيسي', balance:0},
+    {name:'حساب الاستثمار', balance:0},
+    {name:'حساب التجميع', balance:0}
+  ];
+  localStorage.setItem('cvm_accounts', JSON.stringify(accounts));
 }
 </script>
 </body>
