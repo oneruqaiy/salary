@@ -24,7 +24,7 @@ body{
   font-family:"Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   background: var(--light-gray);
   color: var(--accent-text);
-  padding-top:10px; /* Space from top */
+  padding-top:10px;
 }
 #authContainer{
   max-width:400px;
@@ -192,9 +192,10 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 <script>
 // =================================================================
 // 1. Firebase Configuration & Init
+// 
+// 🔴🔴🔴 هام: قم بتغيير هذه القيم إلى قيم مشروعك الفعلي في Firebase 🔴🔴🔴
 // =================================================================
 const firebaseConfig = {
-  // قم بتغيير هذه القيم إلى قيم مشروعك الفعلي في Firebase
   apiKey:"AIzaSyB-1kkLnKv51PmEmwOIk3gqsigTJOU3Cgw", 
   authDomain:"budget-salary.firebaseapp.com",
   projectId:"budget-salary",
@@ -268,8 +269,8 @@ document.querySelectorAll('.bottom-nav div[data-tab]').forEach(btn=>{
     const uid = auth.currentUser ? auth.currentUser.uid : null;
     if(uid){
       if(btn.dataset.tab==='accounts') renderAccounts();
-      if(btn.dataset.tab==='daily') loadUserData(uid); // Refresh dashboard/list
-      if(btn.dataset.tab==='weekly') loadUserData(uid); // Refresh list
+      // إعادة تحميل البيانات لضمان تحديث الداشبورد والرسوم البيانية
+      if(btn.dataset.tab==='daily' || btn.dataset.tab==='weekly') loadUserData(uid, false); 
     }
   });
 });
@@ -306,8 +307,11 @@ async function loadUserData(uid){
   renderAccountTab(data, uid);
   renderAccounts(); // Ensure accounts tab is ready
 
-  // Simulate click on daily to show it first after login/setup
-  document.querySelector('.bottom-nav div[data-tab="daily"]').click();
+  // ⭐️⭐️⭐️ تصحيح مشكلة التنقل ⭐️⭐️⭐️
+  // تأخير النقر لضمان تهيئة عناصر DOM قبل النقر الافتراضي
+  setTimeout(() => {
+    document.querySelector('.bottom-nav div[data-tab="daily"]').click();
+  }, 10);
 }
 
 // =================================================================
@@ -489,12 +493,12 @@ function renderDailyTab(data, uid){
   function refreshList(){
     listDiv.innerHTML='';
     // Show only the last 10 entries for brevity on the main screen
-    const recentExpenses = data.dailyExpenses.slice(-10).reverse(); 
+    const recentExpenses = data.dailyExpenses.slice().sort((a,b) => b.timestamp - a.timestamp).slice(0, 10);
     
     if(recentExpenses.length === 0){
         listDiv.innerHTML = '<div class="text-center text-muted p-3">لا توجد مصاريف مسجلة بعد.</div>';
     } else {
-        recentExpenses.forEach((exp, idx)=>{
+        recentExpenses.forEach((exp)=>{
           const row=document.createElement('div');
           row.className='daily-expense-item';
           row.innerHTML=`
@@ -559,8 +563,7 @@ function renderWeeklyTab(data, uid){
   const weeklyContainer=document.getElementById('weeklyContainer');
   const today=new Date();
   const days=[];
-  const expensesByCat = {};
-
+  
   // Get last 7 days (including today)
   for(let i=6;i>=0;i--){
     const d=new Date();
@@ -589,7 +592,7 @@ function renderWeeklyTab(data, uid){
     if(dayExpenses.length===0){ dayDiv.innerHTML+="<div class='text-muted small'>لا توجد مصروفات مسجلة في هذا اليوم.</div>"; weeklyContainer.appendChild(dayDiv); continue; }
     
     let dayTotal = 0;
-    dayExpenses.forEach((e,i)=>{
+    dayExpenses.forEach((e)=>{
         const div=document.createElement('div');
         div.className="daily-expense-item";
         div.innerHTML=`
@@ -737,13 +740,13 @@ function renderAccounts(){
         </div>
 
         <div id="addMoneyBox" class="card card-royal mx-auto" style="display:none; max-width:520px;">
-          <h6>➕ إضافة أو سحب أموال</h6>
+          <h6>➕ تعديل الرصيد</h6>
           <p id="targetAcctLabel" class="fw-bold"></p>
           <input id="moneySourceInput" class="form-control mb-2" placeholder="المصدر / السبب (اختياري)">
           <input id="moneyAmountInput" class="form-control mb-2" placeholder="المبلغ" type="number">
           <select id="moneyActionType" class="form-select mb-2">
             <option value="add">إضافة (إيداع)</option>
-            <option value="deduct">سحب (تحويل)</option>
+            <option value="deduct">سحب (تحويل/سحب)</option>
           </select>
           <div class="d-flex gap-2">
             <button class="btn btn-main" id="confirmAddMoneyBtn">تنفيذ</button>
