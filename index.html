@@ -182,10 +182,12 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 
   <div class="bottom-nav">
     <div data-tab="daily" class="active"><i class="fas fa-wallet"></i> المصاريف اليومية</div>
-    <div data-tab="accounts"><i class="fas fa-credit-card"></i> حساباتي</div>          <div data-tab="weekly"><i class="fas fa-chart-bar"></i> التحليلات الأسبوعية</div>  <div data-tab="account"><i class="fas fa-cog"></i> حسابك</div>
+    <div data-tab="accounts"><i class="fas fa-credit-card"></i> حساباتي</div>         
+    <div data-tab="weekly"><i class="fas fa-chart-bar"></i> التحليلات الأسبوعية</div>  
+    <div data-tab="account"><i class="fas fa-cog"></i> حسابك</div>
     <div onclick="logout()"><i class="fas fa-sign-out-alt"></i> خروج</div>
   </div>
-  </div>
+</div>
 
 <script>
 // =================================================================
@@ -303,7 +305,7 @@ async function loadUserData(uid, forceTabSwitch = true){
   renderDailyTab(data, uid);
   renderWeeklyTab(data, uid);
   renderAccountTab(data, uid);
-  renderAccounts(); // Ensure accounts tab is ready
+  // renderAccounts(); // ❌ تم حذف هذا السطر لمنع تكرار محتوى الحسابات في الصفحات الأخرى
 
   // النقر يتم فقط عند تسجيل الدخول أو الإعداد الأولي
   if(forceTabSwitch){
