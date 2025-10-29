@@ -6,7 +6,7 @@
 <title>راتــب | إدارة المصاريف</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.com/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -132,6 +132,14 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 .status-bar.red{background:var(--danger-red);}
 
 /* Accounts Tab Styles (Bank Cards) */
+.accounts-container{max-width:1000px; margin:auto;}
+.bank-card-group{
+  background:#fff;
+  border-radius:16px;
+  padding:20px;
+  margin-bottom:20px;
+  box-shadow:var(--card-shadow);
+}
 .accounts-grid{display:flex; gap:16px; flex-wrap:wrap; justify-content:center;}
 .bank-card{
   width:280px;
@@ -155,6 +163,21 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 .small-btn.primary:hover{background:rgba(255,255,255,0.4);}
 .small-btn.danger{background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.08); transition:background 0.2s;}
 .small-btn.danger:hover{background:rgba(255,255,255,0.3);}
+
+/* Allocation Styling */
+.allocation-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:8px 10px;
+    margin-top:5px;
+    background:#f9f9f9;
+    border-radius:8px;
+    border:1px solid #eee;
+    font-size:13px;
+}
+.allocation-item span{color:var(--danger-red); font-weight:bold;}
+
 
 /* gradients */
 .grad-blue{background:linear-gradient(135deg,#2b6df6,#4369ff);}
@@ -270,7 +293,6 @@ document.querySelectorAll('.bottom-nav div[data-tab]').forEach(btn=>{
     const uid = auth.currentUser ? auth.currentUser.uid : null;
     if(uid){
       if(btn.dataset.tab==='accounts') loadUserData(uid, false, true); // تحديث الحسابات
-      // إذا كان التاب هو Daily أو Weekly أو Account (الإعدادات)
       if(btn.dataset.tab==='daily' || btn.dataset.tab==='weekly' || btn.dataset.tab==='account') loadUserData(uid, false); 
     }
   });
@@ -297,6 +319,14 @@ async function loadUserData(uid, forceTabSwitch = true, forceAccountsRender = fa
 
   // يتم تحديث متغير accounts من بيانات Firebase
   accounts = data.accounts || [];
+  
+  // 💡 تحديث: تأكد من أن كل حساب لديه مصفوفة تخصيصات (Allocations)
+  accounts.forEach(acc => {
+    if (!acc.monthlyAllocations) {
+      acc.monthlyAllocations = [];
+    }
+  });
+
 
   if(!data.salary || Object.keys(data.categories).length===0){
     renderInitialSetup(uid, data);
@@ -723,7 +753,7 @@ async function deleteExpense(date, cat, timestamp, amount, accName) {
 }
 
 // =================================================================
-// 7. Accounts Tab (Bank Cards)
+// 7. Accounts Tab (Bank Cards) - محدّث
 // =================================================================
 async function renderAccounts(data, uid){ 
   const container=document.getElementById('accountsTab');
@@ -733,10 +763,11 @@ async function renderAccounts(data, uid){
   if(!existing){
     document.getElementById('accountsTab').innerHTML = `
       <h5 class="mb-3 text-center text-main"><i class="fas fa-credit-card"></i> حساباتي وبطاقاتي</h5>
-      <div id="accountsInner" style="max-width:1000px; margin:auto;">
+      <div id="accountsInner" class="accounts-container">
         
         <div class="text-center mb-3">
-          <button class="btn btn-main" onclick="showAddAccountForm()">➕ إضافة بطاقة جديدة</button>
+          <button class="btn btn-main me-2" onclick="showAddAccountForm()">➕ إضافة بطاقة جديدة</button>
+          <button class="btn btn-outline-info" onclick="showAddAllocationForm()">💰 إضافة تخصيص شهري لبطاقة</button>
         </div>
 
         <div id="addAccountBox" class="card card-royal mx-auto" style="display:none; max-width:520px;">
@@ -768,11 +799,28 @@ async function renderAccounts(data, uid){
             <button class="btn btn-outline-secondary" onclick="cancelAddMoneyForm()">إلغاء</button>
           </div>
         </div>
+
+        <div id="addAllocationBox" class="card card-royal mx-auto" style="display:none; max-width:520px;">
+          <h6>💰 إضافة تخصيص شهري</h6>
+          <select id="allocationAccountSelect" class="form-select mb-2">
+              </select>
+          <input id="allocationName" class="form-control mb-2" placeholder="اسم التخصيص (مثلاً: استثمار الشعر، اشتراك نتفليكس)">
+          <input type="number" id="allocationAmount" class="form-control mb-2" placeholder="المبلغ الشهري">
+          <select id="allocationCategory" class="form-select mb-2">
+            </select>
+          <div class="d-flex gap-2">
+            <button class="btn btn-main" onclick="confirmAddAllocation('${uid}')">إضافة التخصيص</button>
+            <button class="btn btn-outline-secondary" onclick="cancelAddAllocationForm()">إلغاء</button>
+          </div>
+        </div>
         
         <div id="accountsGrid" class="accounts-grid mt-3"></div>
       </div>
     `;
   }
+  
+  // Fill dropdowns
+  fillAllocationDropdowns(data.categories);
 
   // Render Grid
   const grid = document.getElementById('accountsGrid');
@@ -786,6 +834,10 @@ async function renderAccounts(data, uid){
       if(acc.style==='purple'){ cls='grad-purple'; logoType='master'; }
       if(acc.style==='gold'){ cls='grad-gold'; logoType='visa'; }
       
+      const cardContainer = document.createElement('div');
+      cardContainer.className = 'bank-card-group'; // تجميع البطاقة والتخصيصات
+      
+      // 1. Bank Card
       const card = document.createElement('div');
       card.className = 'bank-card '+cls;
       card.innerHTML = `
@@ -806,11 +858,129 @@ async function renderAccounts(data, uid){
           <button class="small-btn danger" onclick="deleteAccount('${uid}', ${idx})">🗑️ حذف</button>
         </div>
       `;
-      grid.appendChild(card);
+      cardContainer.appendChild(card);
+      
+      // 2. Allocations List
+      if(acc.monthlyAllocations && acc.monthlyAllocations.length > 0){
+        const allocDiv = document.createElement('div');
+        allocDiv.className = 'mt-3 pt-3 border-top';
+        allocDiv.innerHTML = `<h6 class="small text-muted mb-2"><i class="fas fa-calendar-alt"></i> التخصيصات الشهرية الثابتة:</h6>`;
+        
+        acc.monthlyAllocations.forEach((alloc, allocIdx) => {
+            const item = document.createElement('div');
+            item.className = 'allocation-item';
+            item.innerHTML = `
+                <div>${alloc.name} (${alloc.category})</div>
+                <div class="d-flex align-items-center">
+                    <span>${alloc.amount.toFixed(2)} ريال</span>
+                    <button class="btn btn-sm btn-outline-danger ms-2" onclick="deleteAllocation('${uid}', ${idx}, ${allocIdx})"><i class="fas fa-trash-alt small"></i></button>
+                </div>
+            `;
+            allocDiv.appendChild(item);
+        });
+        cardContainer.appendChild(allocDiv);
+      }
+      
+      grid.appendChild(cardContainer);
     });
   }
   updateExpenseAccountSelect();
 }
+
+// 💡 دالة مساعدة لملء القوائم المنسدلة
+function fillAllocationDropdowns(categories){
+  const accSelect = document.getElementById('allocationAccountSelect');
+  const catSelect = document.getElementById('allocationCategory');
+  
+  // Fill Accounts
+  accSelect.innerHTML = '<option value="">-- اختر بطاقة / حساب --</option>';
+  accounts.forEach(a=>{
+    const opt = document.createElement('option');
+    opt.value = a.name;
+    opt.textContent = a.name;
+    accSelect.appendChild(opt);
+  });
+  
+  // Fill Categories
+  catSelect.innerHTML = '<option value="">-- اختر قسم الميزانية --</option>';
+  for(const cat in categories){
+    const opt = document.createElement('option');
+    opt.value = cat;
+    opt.textContent = cat;
+    catSelect.appendChild(opt);
+  }
+}
+
+// 💡 دوال عرض/إخفاء نماذج التخصيص
+function showAddAllocationForm(){
+  document.getElementById('addAllocationBox').style.display='block';
+  document.getElementById('addAccountBox').style.display='none';
+  document.getElementById('addMoneyBox').style.display='none';
+}
+function cancelAddAllocationForm(){
+  document.getElementById('addAllocationBox').style.display='none';
+}
+
+
+// 💡 دالة إضافة التخصيص لـ Firebase
+async function confirmAddAllocation(uid){
+    const accName = document.getElementById('allocationAccountSelect').value;
+    const allocName = document.getElementById('allocationName').value.trim();
+    const amount = parseFloat(document.getElementById('allocationAmount').value) || 0;
+    const category = document.getElementById('allocationCategory').value;
+
+    if(!accName || !allocName || amount <= 0 || !category) {
+        return alert("الرجاء تعبئة جميع الحقول بشكل صحيح");
+    }
+
+    const accountIndex = accounts.findIndex(a => a.name === accName);
+
+    if (accountIndex === -1) {
+        return alert("خطأ: لم يتم العثور على الحساب");
+    }
+
+    // إضافة التخصيص إلى قائمة التخصيصات للحساب المحدد محليًا
+    const newAllocation = { 
+      name: allocName, 
+      amount: amount, 
+      category: category, 
+      id: new Date().getTime() // معرف فريد مؤقت للحذف
+    };
+    
+    // تأكد من وجود المصفوفة
+    if (!accounts[accountIndex].monthlyAllocations) {
+        accounts[accountIndex].monthlyAllocations = [];
+    }
+
+    accounts[accountIndex].monthlyAllocations.push(newAllocation);
+
+    // تحديث البيانات في Firebase
+    await db.collection('users').doc(uid).update({ accounts: accounts });
+    
+    // إخفاء النموذج وإعادة التحميل
+    document.getElementById('addAllocationBox').style.display='none';
+    document.getElementById('allocationName').value='';
+    document.getElementById('allocationAmount').value='';
+    alert("✅ تم إضافة التخصيص الشهري بنجاح!");
+    loadUserData(uid, false, true); 
+}
+
+// 💡 دالة حذف التخصيص من Firebase
+async function deleteAllocation(uid, accountIndex, allocationIndex) {
+    if(!confirm("هل أنت متأكد من حذف هذا التخصيص الشهري؟")) return;
+    
+    // حذف التخصيص من المصفوفة المحلية
+    accounts[accountIndex].monthlyAllocations.splice(allocationIndex, 1);
+
+    // تحديث البيانات في Firebase
+    await db.collection('users').doc(uid).update({ accounts: accounts });
+    
+    alert("🗑️ تم حذف التخصيص بنجاح.");
+    loadUserData(uid, false, true);
+}
+
+
+// دوال الحسابات الأخرى (محدثة)
 
 async function confirmAddAccount(uid){
   const name = document.getElementById('newAccountName').value.trim();
@@ -818,8 +988,8 @@ async function confirmAddAccount(uid){
   const style = document.getElementById('newAccountType').value;
   if(!name) return alert("الرجاء إدخال اسم البطاقة");
   
-  // تحديث قائمة accounts المحلية والـ Firebase
-  accounts.push({name, balance:bal, style, createdAt: new Date().toISOString()});
+  // تحديث قائمة accounts المحلية والـ Firebase (مع إضافة مصفوفة التخصيصات)
+  accounts.push({name, balance:bal, style, createdAt: new Date().toISOString(), monthlyAllocations: []});
   await db.collection('users').doc(uid).update({ accounts: accounts });
   
   document.getElementById('newAccountName').value='';
@@ -841,6 +1011,7 @@ async function deleteAccount(uid, idx){
 
 function openAddMoney(uid, idx, action='add'){
   document.getElementById('addAccountBox').style.display='none';
+  document.getElementById('addAllocationBox').style.display='none';
   document.getElementById('addMoneyBox').style.display='block';
   document.getElementById('targetAcctLabel').textContent = `تعديل رصيد: ${accounts[idx].name} (الرصيد الحالي: ${accounts[idx].balance.toFixed(2)})`;
   
@@ -878,6 +1049,7 @@ function openAddMoney(uid, idx, action='add'){
 function showAddAccountForm(){
   document.getElementById('addAccountBox').style.display='block';
   document.getElementById('addMoneyBox').style.display='none';
+  document.getElementById('addAllocationBox').style.display='none';
 }
 function cancelAddAccountForm(){
   document.getElementById('addAccountBox').style.display='none';
@@ -899,7 +1071,7 @@ function updateExpenseAccountSelect(){
 }
 
 // =================================================================
-// 8. Account Tab (Settings) ⬅️ تم إضافة هذا الجزء مجدداً
+// 8. Account Tab (Settings)
 // =================================================================
 function renderAccountTab(data, uid){
   const container=document.getElementById('accountTab');
