@@ -6,7 +6,7 @@
 <title>راتــب | إدارة المصاريف</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-<script src="https://cdn.jsdelivr.com/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -265,7 +265,7 @@ function signup(){
   const password=document.getElementById('password').value;
   if(password.length < 6){ alert("كلمة المرور يجب أن لا تقل عن 6 أحرف"); return; }
   auth.createUserWithEmailAndPassword(email,password).then(cred=>{
-    // إنشاء مستند المستخدم الأولي (تم إضافة حقل accounts)
+    // إنشاء مستند المستخدم الأولي 
     db.collection('users').doc(cred.user.uid).set({
       categories:{}, dailyExpenses:[], salary:0, incomeSources:0, loans:0, lastSalaryDate:null,
       accounts: [] 
@@ -292,7 +292,7 @@ document.querySelectorAll('.bottom-nav div[data-tab]').forEach(btn=>{
     // Refresh UI on tab switch
     const uid = auth.currentUser ? auth.currentUser.uid : null;
     if(uid){
-      if(btn.dataset.tab==='accounts') loadUserData(uid, false, true); // تحديث الحسابات
+      if(btn.dataset.tab==='accounts') loadUserData(uid, false, true); 
       if(btn.dataset.tab==='daily' || btn.dataset.tab==='weekly' || btn.dataset.tab==='account') loadUserData(uid, false); 
     }
   });
@@ -311,46 +311,75 @@ auth.onAuthStateChanged(user=>{
   }
 });
 
-// Load User Data
+// Load User Data - مُعدّل لضمان العرض حتى لو كانت البيانات فارغة
 async function loadUserData(uid, forceTabSwitch = true, forceAccountsRender = false){
-  const docSnap = await db.collection('users').doc(uid).get();
-  if(!docSnap.exists){ alert("خطأ: البيانات غير موجودة"); return; }
-  const data=docSnap.data();
+  const docRef = db.collection('users').doc(uid);
+  const docSnap = await docRef.get();
+  
+  if(!docSnap.exists){ 
+     // في حالة نادرة جدًا عدم وجود المستند (بعد التسجيل مباشرة)، أوقف العملية
+     console.error("User data document does not exist."); 
+     return; 
+  }
+  
+  let data=docSnap.data();
 
-  // يتم تحديث متغير accounts من بيانات Firebase
-  accounts = data.accounts || [];
+  // تهيئة الحقول المفقودة في البيانات القديمة لضمان عدم ظهور أخطاء
+  data.categories = data.categories || {};
+  data.dailyExpenses = data.dailyExpenses || [];
+  data.salary = data.salary || 0;
+  data.incomeSources = data.incomeSources || 0;
+  data.loans = data.loans || 0;
+  data.accounts = data.accounts || [];
+
+  accounts = data.accounts;
   
   // 💡 تحديث: تأكد من أن كل حساب لديه مصفوفة تخصيصات (Allocations)
+  let updateNeeded = false;
   accounts.forEach(acc => {
     if (!acc.monthlyAllocations) {
       acc.monthlyAllocations = [];
+      updateNeeded = true;
     }
   });
 
+  // إذا تم تهيئة حقل جديد، يجب تحديثه في Firebase
+  if(updateNeeded){
+      console.log("Found old accounts data, initializing monthlyAllocations array.");
+      await docRef.update({ accounts: accounts });
+  }
 
-  if(!data.salary || Object.keys(data.categories).length===0){
+  // تحديد ما إذا كان المستخدم في مرحلة الإعداد الأولي (لا راتب ولا أقسام)
+  const isInitialSetup = (!data.salary && Object.keys(data.categories).length === 0);
+
+
+  if(isInitialSetup){
+    // إذا كان الإعداد الأولي، وجّهه لشاشة الإعداد (التي تظهر في Daily Tab)
     renderInitialSetup(uid, data);
-    return;
+  } else {
+    // إذا كان قد أكمل الإعداد، اعرض جميع التابات
+    renderDailyTab(data, uid);
+    renderWeeklyTab(data, uid);
   }
   
-  renderDailyTab(data, uid);
-  renderWeeklyTab(data, uid);
+  // ⭐️ مهم: اعرض تابات الحسابات والإعدادات دائمًا حتى لو لم يكن هناك بيانات
   renderAccountTab(data, uid);
-  
-  if(forceAccountsRender || document.querySelector('.bottom-nav div[data-tab="accounts"]').classList.contains('active')){
-     renderAccounts(data, uid);
-  }
+  renderAccounts(data, uid); // سيتم عرض "إضافة بطاقة جديدة" إذا كانت Accounts فارغة
 
   if(forceTabSwitch){
+    // عند أول تحميل أو تسجيل دخول، اضغط على تاب المصاريف اليومية
     setTimeout(() => {
       document.querySelector('.bottom-nav div[data-tab="daily"]').click();
     }, 10);
+  } else if (forceAccountsRender) {
+     // تأكد من أننا نرى حساباتي إذا كانت هي المطلوبة
+     document.querySelector('.bottom-nav div[data-tab="accounts"]').click();
   }
 }
 
 
 // =================================================================
-// 4. Initial Setup
+// 4. Initial Setup (يظهر عند الدخول الأول أو عدم وجود راتب/ميزانية)
 // =================================================================
 function renderInitialSetup(uid, data){
   const container=document.getElementById('dailyTab');
@@ -753,12 +782,12 @@ async function deleteExpense(date, cat, timestamp, amount, accName) {
 }
 
 // =================================================================
-// 7. Accounts Tab (Bank Cards) - محدّث
+// 7. Accounts Tab (Bank Cards) 
 // =================================================================
 async function renderAccounts(data, uid){ 
   const container=document.getElementById('accountsTab');
-  container.style.display='block';
   
+  // ⭐️ مهم: نقوم ببناء الواجهة دائمًا لضمان ظهور النماذج حتى لو كانت البيانات فارغة
   const existing = document.getElementById('accountsInner');
   if(!existing){
     document.getElementById('accountsTab').innerHTML = `
@@ -827,7 +856,7 @@ async function renderAccounts(data, uid){
   grid.innerHTML = '';
   
   if(accounts.length===0){
-    grid.innerHTML = `<div class="card card-royal w-100 text-center">لا توجد حسابات بعد — اضغط على "إضافة بطاقة جديدة".</div>`;
+    grid.innerHTML = `<div class="card card-royal w-100 text-center">لا توجد حسابات بعد — اضغط على "➕ إضافة بطاقة جديدة".</div>`;
   } else {
     accounts.forEach((acc, idx)=>{
       let cls = 'grad-blue', logoType='visa';
@@ -893,21 +922,25 @@ function fillAllocationDropdowns(categories){
   const catSelect = document.getElementById('allocationCategory');
   
   // Fill Accounts
-  accSelect.innerHTML = '<option value="">-- اختر بطاقة / حساب --</option>';
-  accounts.forEach(a=>{
-    const opt = document.createElement('option');
-    opt.value = a.name;
-    opt.textContent = a.name;
-    accSelect.appendChild(opt);
-  });
+  if(accSelect){ // تحقق من وجود العنصر
+    accSelect.innerHTML = '<option value="">-- اختر بطاقة / حساب --</option>';
+    accounts.forEach(a=>{
+      const opt = document.createElement('option');
+      opt.value = a.name;
+      opt.textContent = a.name;
+      accSelect.appendChild(opt);
+    });
+  }
   
   // Fill Categories
-  catSelect.innerHTML = '<option value="">-- اختر قسم الميزانية --</option>';
-  for(const cat in categories){
-    const opt = document.createElement('option');
-    opt.value = cat;
-    opt.textContent = cat;
-    catSelect.appendChild(opt);
+  if(catSelect){ // تحقق من وجود العنصر
+    catSelect.innerHTML = '<option value="">-- اختر قسم الميزانية --</option>';
+    for(const cat in categories){
+      const opt = document.createElement('option');
+      opt.value = cat;
+      opt.textContent = cat;
+      catSelect.appendChild(opt);
+    }
   }
 }
 
@@ -980,7 +1013,7 @@ async function deleteAllocation(uid, accountIndex, allocationIndex) {
 }
 
 
-// دوال الحسابات الأخرى (محدثة)
+// دوال الحسابات الأخرى 
 
 async function confirmAddAccount(uid){
   const name = document.getElementById('newAccountName').value.trim();
